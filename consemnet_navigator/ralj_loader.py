@@ -14,6 +14,44 @@ def load_ralj_data(data, neo4j_session):
     assert type(data) == list and len(data) == 2
     dataConceptBlock = data[0]
     constructedConceptBlock = data[1]
+    abstractionIDByJsonNodeID = {}
+    relatingAbstractionsByJsonNodeID = {}
+    uncheckedJsonNodeIDs = set(constructedConceptBlock.keys())
+    loadedJsonNodeIDs = set()
+    # Load all direct data abstractions
+    for format, dataConcepts in dataConceptBlock.items():
+        for data, jsonNodeID in dataConcepts.items():
+            abstractionIDByJsonNodeID[jsonNodeID] = DirectDataAbstraction(data, format, neo4j_session)
+            loadedJsonNodeIDs.add(jsonNodeID)
+    # Load all constructed abstractions
+    while len(uncheckedJsonNodeIDs) > 0:
+        jsonNodeID = uncheckedJsonNodeIDs.pop()
+        semanticConnections = constructedConceptBlock[jsonNodeID]
+        allConnectedJsonNodeIDsLoaded = True
+        for connection in semanticConnections:
+            for connectedJsonNodeID in connection:
+                if connectedJsonNodeID != 0 and connectedJsonNodeID not in loadedJsonNodeIDs:
+                    allConnectedJsonNodeIDsLoaded = False
+                    if connectedJsonNodeID not in relatingAbstractionsByJsonNodeID:
+                        relatingAbstractionsByJsonNodeID[connectedJsonNodeID] = set()
+                    relatingAbstractionsByJsonNodeID[connectedJsonNodeID].add(jsonNodeID)
+                    break
+            if not allConnectedJsonNodeIDsLoaded:
+                break
+        if allConnectedJsonNodeIDsLoaded:
+            # Load the abstraction
+            semanticConnections = [[None if y == 0 else abstractionIDByJsonNodeID[y] for y in x] for x in semanticConnections]
+            abstractionIDByJsonNodeID[jsonNodeID] = ConstructedAbstraction(semanticConnections, neo4j_session)
+            loadedJsonNodeIDs.add(jsonNodeID)
+        else:
+            continue
+        # The abstraction is loaded
+        if jsonNodeID in relatingAbstractionsByJsonNodeID:
+            for relatingJsonNodeID in relatingAbstractionsByJsonNodeID[jsonNodeID]:
+                if not relatingJsonNodeID in loadedJsonNodeIDs:
+                    uncheckedJsonNodeIDs.add(relatingJsonNodeID)
+            del relatingAbstractionsByJsonNodeID[jsonNodeID]
+    return set(abstractionIDByJsonNodeID.values())
 
 def save_ralj_file(file_path, neo4j_session):
     with open(file_path, "w") as file:
