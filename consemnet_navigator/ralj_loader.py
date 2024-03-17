@@ -11,12 +11,13 @@ def load_ralj_file(file_path, neo4j_session):
     return load_ralj_data(data, neo4j_session)
 
 def load_ralj_data(data, neo4j_session):
-    assert type(data) == list and len(data) == 2
+    assert type(data) == list and len(data) == 3
     dataConceptBlock = data[0]
     constructedConceptBlock = data[1]
+    directAbstractionBlock = data[2]
     abstractionIDByJsonNodeID = {}
     relatingAbstractionsByJsonNodeID = {}
-    uncheckedJsonNodeIDs = set(constructedConceptBlock.keys())
+    uncheckedJsonNodeIDs = set(constructedConceptBlock.keys()).union(set(directAbstractionBlock.keys()))
     loadedJsonNodeIDs = set()
     # Load all direct data abstractions
     for format, dataConcepts in dataConceptBlock.items():
@@ -26,25 +27,37 @@ def load_ralj_data(data, neo4j_session):
     # Load all constructed abstractions
     while len(uncheckedJsonNodeIDs) > 0:
         jsonNodeID = uncheckedJsonNodeIDs.pop()
-        semanticConnections = constructedConceptBlock[jsonNodeID]
-        allConnectedJsonNodeIDsLoaded = True
-        for connection in semanticConnections:
-            for connectedJsonNodeID in connection:
-                if connectedJsonNodeID != 0 and connectedJsonNodeID not in loadedJsonNodeIDs:
-                    allConnectedJsonNodeIDsLoaded = False
-                    if connectedJsonNodeID not in relatingAbstractionsByJsonNodeID:
-                        relatingAbstractionsByJsonNodeID[connectedJsonNodeID] = set()
-                    relatingAbstractionsByJsonNodeID[connectedJsonNodeID].add(jsonNodeID)
-                    break
-            if not allConnectedJsonNodeIDsLoaded:
-                break
-        if allConnectedJsonNodeIDsLoaded:
-            # Load the abstraction
-            semanticConnections = [[None if y == 0 else abstractionIDByJsonNodeID[y] for y in x] for x in semanticConnections]
-            abstractionIDByJsonNodeID[jsonNodeID] = ConstructedAbstraction(semanticConnections, neo4j_session)
+        if jsonNodeID in directAbstractionBlock:
+            # The abstraction is a direct abstraction
+            innerJsonNodeID = directAbstractionBlock[jsonNodeID]
+            if innerJsonNodeID not in loadedJsonNodeIDs:
+                if innerJsonNodeID not in relatingAbstractionsByJsonNodeID:
+                    relatingAbstractionsByJsonNodeID[innerJsonNodeID] = set()
+                relatingAbstractionsByJsonNodeID[innerJsonNodeID].add(jsonNodeID)
+                continue
+            abstractionIDByJsonNodeID[jsonNodeID] = DirectAbstraction(abstractionIDByJsonNodeID[innerJsonNodeID], neo4j_session)
             loadedJsonNodeIDs.add(jsonNodeID)
         else:
-            continue
+            # The abstraction is a constructed abstraction
+            semanticConnections = constructedConceptBlock[jsonNodeID]
+            allConnectedJsonNodeIDsLoaded = True
+            for connection in semanticConnections:
+                for connectedJsonNodeID in connection:
+                    if connectedJsonNodeID != 0 and connectedJsonNodeID not in loadedJsonNodeIDs:
+                        allConnectedJsonNodeIDsLoaded = False
+                        if connectedJsonNodeID not in relatingAbstractionsByJsonNodeID:
+                            relatingAbstractionsByJsonNodeID[connectedJsonNodeID] = set()
+                        relatingAbstractionsByJsonNodeID[connectedJsonNodeID].add(jsonNodeID)
+                        break
+                if not allConnectedJsonNodeIDsLoaded:
+                    break
+            if allConnectedJsonNodeIDsLoaded:
+                # Load the abstraction
+                semanticConnections = [[None if y == 0 else abstractionIDByJsonNodeID[y] for y in x] for x in semanticConnections]
+                abstractionIDByJsonNodeID[jsonNodeID] = ConstructedAbstraction(semanticConnections, neo4j_session)
+                loadedJsonNodeIDs.add(jsonNodeID)
+            else:
+                continue
         # The abstraction is loaded
         if jsonNodeID in relatingAbstractionsByJsonNodeID:
             for relatingJsonNodeID in relatingAbstractionsByJsonNodeID[jsonNodeID]:
@@ -66,6 +79,7 @@ def save_ralj_data(abstractions, neo4j_session):
     jsonNodeIndex = 1
     dataConceptBlock = {}
     constructedConceptBlock = {}
+    directAbstractionBlock = {}
     while len(uncheckedAbstractions) > 0:
         abstraction = uncheckedAbstractions.pop()
         abstractionType = getAbstractionType(abstraction, neo4j_session)
@@ -101,6 +115,20 @@ def save_ralj_data(abstractions, neo4j_session):
                 jsonNodeIndex += 1
             else:
                 continue
+        elif abstractionType == "DirectAbstraction":
+            innerAbstraction = getDirectAbstractionContent(abstraction, neo4j_session)
+            if innerAbstraction not in savedAbstractions:
+                uncheckedAbstractions.add(innerAbstraction)
+                # Add the relating abstraction
+                if innerAbstraction not in relatingAbstractionsByAbstractionID:
+                    relatingAbstractionsByAbstractionID[innerAbstraction] = set()
+                relatingAbstractionsByAbstractionID[innerAbstraction].add(abstraction)
+                continue
+            else:
+                # Save the direct abstraction
+                jsonNodeIDByAbstractionID[abstraction] = jsonNodeIndex
+                directAbstractionBlock[jsonNodeIndex] = jsonNodeIDByAbstractionID[innerAbstraction]
+                jsonNodeIndex += 1
         # The abstraction is saved
         savedAbstractions.add(abstraction)
         # Add the relating abstractions
@@ -109,4 +137,4 @@ def save_ralj_data(abstractions, neo4j_session):
                 if not relatingAbstraction in savedAbstractions:
                     uncheckedAbstractions.add(relatingAbstraction)
             del relatingAbstractionsByAbstractionID[abstraction]
-    return [dataConceptBlock, constructedConceptBlock]
+    return [dataConceptBlock, constructedConceptBlock, directAbstractionBlock]

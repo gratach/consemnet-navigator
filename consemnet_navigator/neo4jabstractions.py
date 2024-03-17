@@ -68,10 +68,21 @@ def DirectDataAbstraction(datastring, formatstring, neo4j_session):
     id = neo4j_session.run("MERGE (a:DirectDataAbstraction {data: $data, format: $format}) RETURN id(a)", data=datastring, format=formatstring).single().value()
     return id
 
+def DirectAbstraction(abstraction, neo4j_session):
+    """
+    Creates the direct abstraction of an abstraction in the neo4j database and returns the node id of the created direct abstraction.
+    """
+    id = neo4j_session.run("MATCH (n) WHERE id(n) = $id MERGE (a:DirectAbstraction)-[:isAbstractionOf]->(n) RETURN id(a)", id=abstraction).single().value()
+    return id
+
 def deleteAbstraction(id, neo4j_session):
     """
     Deletes the abstraction with the given id from the neo4j database.
     """
+    # Check if there is a direct abstraction of the abstraction
+    directAbstraction = neo4j_session.run("MATCH (n)-[:isAbstractionOf]->(m) WHERE id(m) = $id RETURN id(n)", id=id).single()
+    if directAbstraction != None:
+        raise ValueError("The abstraction can not be deleted because there is a DirectAbstraction that relies on it.")
     # Get all the ids of the connected AbstractionTriples
     connectedTriples = set()
     for conn in ["subj", "pred", "obj"]:
@@ -115,3 +126,10 @@ def getDirectDataAbstractionContent(id, neo4j_session):
     data = neo4j_session.run("MATCH (n:DirectDataAbstraction) WHERE id(n) = $id RETURN n.data", id=id).single().value()
     format = neo4j_session.run("MATCH (n:DirectDataAbstraction) WHERE id(n) = $id RETURN n.format", id=id).single().value()
     return (data, format)
+
+def getDirectAbstractionContent(id, neo4j_session):
+    """
+    Returns the id of the abstraction that the direct abstraction with the given id is an abstraction of.
+    """
+    abstraction = neo4j_session.run("MATCH (n)-[:isAbstractionOf]->(m) WHERE id(n) = $id RETURN id(m)", id=id).single().value()
+    return abstraction

@@ -15,7 +15,9 @@ with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
     dda1 = DirectDataAbstraction("data1", "format1", session)
     dda2 = DirectDataAbstraction("data2", "format1", session)
 
-    ca1 = ConstructedAbstraction([(None, dda1, dda2)], session)
+    da1 = DirectAbstraction(dda1, session)
+
+    ca1 = ConstructedAbstraction([(None, da1, dda2)], session)
     ca2 = ConstructedAbstraction([(None, dda1, ca1),
                                 (None, None, dda2)], session)
 
@@ -26,15 +28,15 @@ with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
 
     print(save_ralj_data([ca2], session))
     load_ralj_data([
-        {"string": {"hallo": 1, "welt": 2}},
-        {1: [[0, 1, 2]], 2: [[1, 0, 0]]}
-    ], session)
-    load_ralj_data([
-        {"string": {"hi": 1, "welt": 2}},
-        {1: [[0, 1, 2]], 2: [[1, 0, 0]]}
+        {"string": {"hallo" : 1, "welt" : 2}},
+        { 
+            5 : [[0, 3, 1]],
+            7 : [[0, 4, 6]]
+        },
+        {3 : 1, 4 : 2, 6 : 5},
     ], session)
 
     deleteAbstraction(ca2, session)
-    deleteAbstraction(ca1, session)
-    deleteAbstraction(dda1, session)
-    deleteAbstraction(dda2, session)
+    #deleteAbstraction(ca1, session)
+    #deleteAbstraction(dda1, session)
+    #deleteAbstraction(dda2, session)

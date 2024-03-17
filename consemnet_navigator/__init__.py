@@ -1,2 +1,2 @@
-from .neo4jabstractions import DirectDataAbstraction, ConstructedAbstraction, deleteAbstraction, getSemanticConnections, getAbstractionType, getDirectDataAbstractionContent
+from .neo4jabstractions import DirectDataAbstraction, ConstructedAbstraction, DirectAbstraction, deleteAbstraction, getSemanticConnections, getAbstractionType, getDirectDataAbstractionContent, getDirectAbstractionContent
 from .ralj_loader import load_ralj_file, load_ralj_data, save_ralj_file, save_ralj_data
