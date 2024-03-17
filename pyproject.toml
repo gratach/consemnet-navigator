@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "consemnet_navigator"
+version = "0.1.0"
+description = ""
+authors = ["Patrick Richter <gratach@gmx.de>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+openai = "^1.13.0"
+neo4j = "^5.18.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+#[tool.poetry.scripts]
+#meinscri = "master-conceptlogic-mlm.test:test"
