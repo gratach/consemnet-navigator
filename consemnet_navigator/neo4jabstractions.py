@@ -87,3 +87,31 @@ def deleteAbstraction(id, neo4j_session):
         neo4j_session.run("MATCH (n) WHERE id(n) = $id DETACH DELETE n", id=triple)
     # Delete the abstraction
     neo4j_session.run("MATCH (n) WHERE id(n) = $id DETACH DELETE n", id=id)
+
+def getSemanticConnections(id, neo4j_session):
+    """
+    Returns the semantic connections of the abstraction with the given id.
+    """
+    ownedTriples = set(neo4j_session.run("MATCH (n)-[:ownsTriple]->(m) WHERE id(n) = $id RETURN id(m)", id=id).value())
+    semanticConnections = []
+    for triple in ownedTriples:
+        subj = neo4j_session.run("MATCH (t)-[:subj]->(n) WHERE id(t) = $id RETURN id(n)", id=triple).single().value()
+        pred = neo4j_session.run("MATCH (t)-[:pred]->(n) WHERE id(t) = $id RETURN id(n)", id=triple).single().value()
+        obj = neo4j_session.run("MATCH (t)-[:obj]->(n) WHERE id(t) = $id RETURN id(n)", id=triple).single().value()
+        semanticConnections.append((None if subj ==  id else subj, None if pred == id else pred, None if obj == id else obj))
+    return frozenset(semanticConnections)
+
+def getAbstractionType(id, neo4j_session):
+    """
+    Returns the type of the abstraction with the given id.
+    """
+    type = neo4j_session.run("MATCH (n) WHERE id(n) = $id RETURN labels(n)", id=id).single().value()
+    return type[0]
+
+def getDirectDataAbstractionContent(id, neo4j_session):
+    """
+    Returns the data and format of the direct abstraction with the given id.
+    """
+    data = neo4j_session.run("MATCH (n:DirectDataAbstraction) WHERE id(n) = $id RETURN n.data", id=id).single().value()
+    format = neo4j_session.run("MATCH (n:DirectDataAbstraction) WHERE id(n) = $id RETURN n.format", id=id).single().value()
+    return (data, format)

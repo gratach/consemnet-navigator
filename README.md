@@ -1,6 +1,6 @@
 # Consemnet-Navigator
 
-An interactive console semantic network navigato
+An interactive console semantic network navigator
 
 # Installation:
 
