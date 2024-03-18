@@ -11,13 +11,14 @@ def loadRALJFile(file_path, neo4j_session):
     return loadRALJData(data, neo4j_session)
 
 def loadRALJData(data, neo4j_session):
-    assert type(data) == list and len(data) == 3
-    dataConceptBlock = data[0]
-    constructedConceptBlock = data[1]
-    directAbstractionBlock = data[2]
+    assert type(data) == list and len(data) < 5
+    dataConceptBlock = data[0] if len(data) > 0 else {}
+    constructedConceptBlock = data[1] if len(data) > 1 else {}
+    directAbstractionBlock = data[2] if len(data) > 2 else {}
+    inverseDirectAbstractionBlock = data[3] if len(data) > 3 else {}
     abstractionIDByJsonNodeID = {}
     relatingAbstractionsByJsonNodeID = {}
-    uncheckedJsonNodeIDs = set(constructedConceptBlock.keys()).union(set(directAbstractionBlock.keys()))
+    uncheckedJsonNodeIDs = set(constructedConceptBlock.keys()).union(set(directAbstractionBlock.keys())).union(set(inverseDirectAbstractionBlock.keys()))
     loadedJsonNodeIDs = set()
     # Load all direct data abstractions
     for format, dataConcepts in dataConceptBlock.items():
@@ -36,6 +37,16 @@ def loadRALJData(data, neo4j_session):
                 relatingAbstractionsByJsonNodeID[innerJsonNodeID].add(jsonNodeID)
                 continue
             abstractionIDByJsonNodeID[jsonNodeID] = DirectAbstraction(abstractionIDByJsonNodeID[innerJsonNodeID], neo4j_session)
+            loadedJsonNodeIDs.add(jsonNodeID)
+        elif jsonNodeID in inverseDirectAbstractionBlock:
+            # The abstraction is a direct abstraction
+            innerJsonNodeID = inverseDirectAbstractionBlock[jsonNodeID]
+            if innerJsonNodeID not in loadedJsonNodeIDs:
+                if innerJsonNodeID not in relatingAbstractionsByJsonNodeID:
+                    relatingAbstractionsByJsonNodeID[innerJsonNodeID] = set()
+                relatingAbstractionsByJsonNodeID[innerJsonNodeID].add(jsonNodeID)
+                continue
+            abstractionIDByJsonNodeID[jsonNodeID] = InverseDirectAbstraction(abstractionIDByJsonNodeID[innerJsonNodeID], neo4j_session)
             loadedJsonNodeIDs.add(jsonNodeID)
         else:
             # The abstraction is a constructed abstraction
@@ -80,6 +91,7 @@ def saveRALJData(abstractions, neo4j_session):
     dataConceptBlock = {}
     constructedConceptBlock = {}
     directAbstractionBlock = {}
+    inverseDirectAbstractionBlock = {}
     while len(uncheckedAbstractions) > 0:
         abstraction = uncheckedAbstractions.pop()
         abstractionType = getAbstractionType(abstraction, neo4j_session)
@@ -129,6 +141,20 @@ def saveRALJData(abstractions, neo4j_session):
                 jsonNodeIDByAbstractionID[abstraction] = jsonNodeIndex
                 directAbstractionBlock[jsonNodeIndex] = jsonNodeIDByAbstractionID[innerAbstraction]
                 jsonNodeIndex += 1
+        elif abstractionType == "InverseDirectAbstraction":
+            innerAbstraction = getInverseDirectAbstractionContent(abstraction, neo4j_session)
+            if innerAbstraction not in savedAbstractions:
+                uncheckedAbstractions.add(innerAbstraction)
+                # Add the relating abstraction
+                if innerAbstraction not in relatingAbstractionsByAbstractionID:
+                    relatingAbstractionsByAbstractionID[innerAbstraction] = set()
+                relatingAbstractionsByAbstractionID[innerAbstraction].add(abstraction)
+                continue
+            else:
+                # Save the inverse direct abstraction
+                jsonNodeIDByAbstractionID[abstraction] = jsonNodeIndex
+                inverseDirectAbstractionBlock[jsonNodeIndex] = jsonNodeIDByAbstractionID[innerAbstraction]
+                jsonNodeIndex += 1
         # The abstraction is saved
         savedAbstractions.add(abstraction)
         # Add the relating abstractions
@@ -137,4 +163,4 @@ def saveRALJData(abstractions, neo4j_session):
                 if not relatingAbstraction in savedAbstractions:
                     uncheckedAbstractions.add(relatingAbstraction)
             del relatingAbstractionsByAbstractionID[abstraction]
-    return [dataConceptBlock, constructedConceptBlock, directAbstractionBlock]
+    return [dataConceptBlock, constructedConceptBlock, directAbstractionBlock, inverseDirectAbstractionBlock]

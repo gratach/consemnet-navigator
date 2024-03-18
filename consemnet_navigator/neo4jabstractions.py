@@ -75,6 +75,13 @@ def DirectAbstraction(abstraction, neo4j_session):
     id = neo4j_session.run("MATCH (n) WHERE id(n) = $id MERGE (a:DirectAbstraction)-[:isAbstractionOf]->(n) RETURN id(a)", id=abstraction).single().value()
     return id
 
+def InverseDirectAbstraction(directAbstraction, neo4j_session):
+    """
+    Creates the inverse direct abstraction of an abstraction in the neo4j database and returns the node id of the created direct abstraction.
+    """
+    id = neo4j_session.run("MATCH (n) WHERE id(n) = $id MERGE (a:InverseDirectAbstraction)-[:isInverseAbstractionOf]->(n) RETURN id(a)", id=directAbstraction).single().value()
+    return id
+
 def deleteAbstraction(id, neo4j_session):
     """
     Deletes the abstraction with the given id from the neo4j database.
@@ -83,6 +90,10 @@ def deleteAbstraction(id, neo4j_session):
     directAbstraction = neo4j_session.run("MATCH (n)-[:isAbstractionOf]->(m) WHERE id(m) = $id RETURN id(n)", id=id).single()
     if directAbstraction != None:
         raise ValueError("The abstraction can not be deleted because there is a DirectAbstraction that relies on it.")
+    # Check if there is an inverse direct abstraction of the abstraction
+    inverseDirectAbstraction = neo4j_session.run("MATCH (n)-[:isInverseAbstractionOf]->(m) WHERE id(m) = $id RETURN id(n)", id=id).single()
+    if inverseDirectAbstraction != None:
+        raise ValueError("The abstraction can not be deleted because there is an InverseDirectAbstraction that relies on it.")
     # Get all the ids of the connected AbstractionTriples
     connectedTriples = set()
     for conn in ["subj", "pred", "obj"]:
@@ -134,16 +145,24 @@ def getDirectAbstractionContent(id, neo4j_session):
     abstraction = neo4j_session.run("MATCH (n)-[:isAbstractionOf]->(m) WHERE id(n) = $id RETURN id(m)", id=id).single().value()
     return abstraction
 
+def getInverseDirectAbstractionContent(id, neo4j_session):
+    """
+    Returns the id of the abstraction that the inverse direct abstraction with the given id is an inverse abstraction of.
+    """
+    abstraction = neo4j_session.run("MATCH (n)-[:isInverseAbstractionOf]->(m) WHERE id(n) = $id RETURN id(m)", id=id).single().value()
+    return abstraction
+
 def searchRALJPattern(pattern, neo4j_session):
     """
     Searches for appearances of the given pattern in the neo4j database and returns a list of dictionaries that map the ids of the ralj pattern to the neo4j ids of the appearances.
     The pattern can also contain neo4j ids which are maked by enclosing them in square brackets.
     When searching for constructed concepts that can have more than the listed connections, a "+" has to be added at the end of the connection list.
     """
-    assert type(pattern) == list and len(pattern) == 3
-    dataConceptBlock = pattern[0]
-    constructedConceptBlock = pattern[1]
-    directAbstractionBlock = pattern[2]
+    assert type(pattern) == list and len(pattern) < 5
+    dataConceptBlock = pattern[0] if len(pattern) > 0 else {}
+    constructedConceptBlock = pattern[1] if len(pattern) > 1 else {}
+    directAbstractionBlock = pattern[2] if len(pattern) > 2 else {}
+    inverseDirectAbstractionBlock = pattern[3] if len(pattern) > 3 else {}
     structureStringArray = []
     globalIDs = set()
     localIDs = set()
@@ -207,6 +226,24 @@ def searchRALJPattern(pattern, neo4j_session):
             globalIDs.add(abstraction[0])
         else:
             raise ValueError("The id of an abstraction must be an int or a list with one int.")
+    # Evaluate the inverseDirectAbstractionBlock
+    for id, abstraction in inverseDirectAbstractionBlock.items():
+        if type(id) == int:
+            idName = f"local{id}"
+            localIDs.add(id)
+        elif type(id) == list and len(id) == 1 and type(id[0]) == int:
+            idName = f"global{id[0]}"
+            globalIDs.add(id[0])
+        else:
+            raise ValueError("The id of an inverse direct abstraction must be an int or a list with one int.")
+        if type(abstraction) == int:
+            structureStringArray.append(f"({idName}:InverseDirectAbstraction)-[:isInverseAbstractionOf]->(local{abstraction})")
+            localIDs.add(abstraction)
+        elif type(abstraction) == list and len(abstraction) == 1 and type(abstraction[0]) == int:
+            structureStringArray.append(f"({idName}:InverseDirectAbstraction)-[:isInverseAbstractionOf]->(global{abstraction[0]})")
+            globalIDs.add(abstraction[0])
+        else:
+            raise ValueError("The id of an abstraction must be an int or a list with one int.")
     # Create the query string
     structureString = "MATCH " + ", ".join(structureStringArray)
     if len(globalIDs) > 0:
@@ -215,7 +252,6 @@ def searchRALJPattern(pattern, neo4j_session):
         raise ValueError("The pattern must contain at least one local id.")
     localIDs = list(localIDs)
     structureString += " RETURN " + ", ".join([f"id(local{id})" for id in localIDs])
-    print(structureString)
     # Execute the query and return the result as a list of dictionaries
     result = neo4j_session.run(structureString).values()
     result = [dict(zip(localIDs, record)) for record in result]

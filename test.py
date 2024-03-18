@@ -34,7 +34,8 @@ with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
             7 : [[0, 4, 6],
                  [0, 1, 1]]
         },
-        {3 : 1, 4 : 2, 6 : 5},
+        {3 : 1, 6 : 5},
+        {4 : 2}
     ], session)
 
     print("loaded", loaded)
@@ -42,10 +43,18 @@ with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
     searched = searchRALJPattern([
         {"string": {"welt" : 2}},
         {7 : [[0, 4, 6], "+"],},
-        {6 : [loaded[5]], 4 : 2}
+        {6 : [loaded[5]]},
+        {4 : 2}
         ], session)
     
     print("searched", searched)
+
+    searched2 = searchRALJPattern([
+        {"string": {"hallo" : 1}},
+        {3 : [[0, 2, 1], "+"],},
+        ], session)
+    
+    print("searched2", searched2)
 
     deleteAbstraction(ca2, session)
     #deleteAbstraction(ca1, session)
