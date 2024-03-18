@@ -26,15 +26,26 @@ with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
     print(getAbstractionType(ca1, session))
     print(getAbstractionType(dda2, session))
 
-    print(save_ralj_data([ca2], session))
-    load_ralj_data([
+    print(saveRALJData([ca2], session))
+    loaded = loadRALJData([
         {"string": {"hallo" : 1, "welt" : 2}},
         { 
             5 : [[0, 3, 1]],
-            7 : [[0, 4, 6]]
+            7 : [[0, 4, 6],
+                 [0, 1, 1]]
         },
         {3 : 1, 4 : 2, 6 : 5},
     ], session)
+
+    print("loaded", loaded)
+
+    searched = searchRALJPattern([
+        {"string": {"welt" : 2}},
+        {7 : [[0, 4, 6], "+"],},
+        {6 : [loaded[5]], 4 : 2}
+        ], session)
+    
+    print("searched", searched)
 
     deleteAbstraction(ca2, session)
     #deleteAbstraction(ca1, session)

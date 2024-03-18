@@ -133,3 +133,90 @@ def getDirectAbstractionContent(id, neo4j_session):
     """
     abstraction = neo4j_session.run("MATCH (n)-[:isAbstractionOf]->(m) WHERE id(n) = $id RETURN id(m)", id=id).single().value()
     return abstraction
+
+def searchRALJPattern(pattern, neo4j_session):
+    """
+    Searches for appearances of the given pattern in the neo4j database and returns a list of dictionaries that map the ids of the ralj pattern to the neo4j ids of the appearances.
+    The pattern can also contain neo4j ids which are maked by enclosing them in square brackets.
+    When searching for constructed concepts that can have more than the listed connections, a "+" has to be added at the end of the connection list.
+    """
+    assert type(pattern) == list and len(pattern) == 3
+    dataConceptBlock = pattern[0]
+    constructedConceptBlock = pattern[1]
+    directAbstractionBlock = pattern[2]
+    structureStringArray = []
+    globalIDs = set()
+    localIDs = set()
+    # Evaluate the dataConceptBlock
+    for format, datalist in dataConceptBlock.items():
+        for data, id in datalist.items():
+            if type(id) == int:
+                structureStringArray.append(f"(local{id}:DirectDataAbstraction {{data: '{data}', format: '{format}'}})")
+                localIDs.add(id)
+            elif type(id) == list and len(id) == 1 and type(id[0]) == int:
+                structureStringArray.append(f"(global{id[0]}:DirectDataAbstraction {{data: '{data}', format: '{format}'}})")
+                globalIDs.add(id[0])
+            else:
+                raise ValueError("The id of a data concept must be an int or a list with one int.")
+    # Evaluate the constructedConceptBlock
+    tripelIndex = 0
+    for id, connections in constructedConceptBlock.items():
+        if type(id) == int:
+            idName = f"local{id}"
+            localIDs.add(id)
+        elif type(id) == list and len(id) == 1 and type(id[0]) == int:
+            idName = f"global{id[0]}"
+            globalIDs.add(id[0])
+        else:
+            raise ValueError("The id of a constructed concept must be an int or a list with one int.")
+        if len(connections) > 0 and list(connections)[-1] == "+":
+            connections = list(connections)[:-1]
+            structureStringArray.append(f"({idName}:ConstructedAbstraction)")
+        else:
+            structureStringArray.append(f"({idName}:ConstructedAbstraction {{connectionCount: {len(connections)}}})")
+        for connection in connections:
+            structureStringArray.append(f"({idName})-[:ownsTriple]->(triple{tripelIndex}:AbstractionTriple)")
+            for i, triple in enumerate(connection):
+                if type(triple) == int:
+                    if triple == 0:
+                        structureStringArray.append(f"(triple{tripelIndex})-[:{['subj', 'pred', 'obj'][i]}]->({idName})")
+                    else:
+                        structureStringArray.append(f"(triple{tripelIndex})-[:{['subj', 'pred', 'obj'][i]}]->(local{triple})")
+                        localIDs.add(triple)
+                elif type(triple) == list and len(triple) == 1 and type(triple[0]) == int:
+                    structureStringArray.append(f"(triple{tripelIndex})-[:{['subj', 'pred', 'obj'][i]}]->(global{triple[0]})")
+                    globalIDs.add(triple[0])
+                else:
+                    raise ValueError("The id of a triple concept must be an int or a list with one int.")
+            tripelIndex += 1
+    # Evaluate the directAbstractionBlock
+    for id, abstraction in directAbstractionBlock.items():
+        if type(id) == int:
+            idName = f"local{id}"
+            localIDs.add(id)
+        elif type(id) == list and len(id) == 1 and type(id[0]) == int:
+            idName = f"global{id[0]}"
+            globalIDs.add(id[0])
+        else:
+            raise ValueError("The id of a direct abstraction must be an int or a list with one int.")
+        if type(abstraction) == int:
+            structureStringArray.append(f"({idName}:DirectAbstraction)-[:isAbstractionOf]->(local{abstraction})")
+            localIDs.add(abstraction)
+        elif type(abstraction) == list and len(abstraction) == 1 and type(abstraction[0]) == int:
+            structureStringArray.append(f"({idName}:DirectAbstraction)-[:isAbstractionOf]->(global{abstraction[0]})")
+            globalIDs.add(abstraction[0])
+        else:
+            raise ValueError("The id of an abstraction must be an int or a list with one int.")
+    # Create the query string
+    structureString = "MATCH " + ", ".join(structureStringArray)
+    if len(globalIDs) > 0:
+        structureString += " WHERE " +  " AND ".join([f"id(global{id}) = {id}" for id in globalIDs])
+    if len(localIDs) == 0:
+        raise ValueError("The pattern must contain at least one local id.")
+    localIDs = list(localIDs)
+    structureString += " RETURN " + ", ".join([f"id(local{id})" for id in localIDs])
+    print(structureString)
+    # Execute the query and return the result as a list of dictionaries
+    result = neo4j_session.run(structureString).values()
+    result = [dict(zip(localIDs, record)) for record in result]
+    return result

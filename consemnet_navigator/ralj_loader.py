@@ -5,12 +5,12 @@
 import json
 from .neo4jabstractions import *
 
-def load_ralj_file(file_path, neo4j_session):
+def loadRALJFile(file_path, neo4j_session):
     with open(file_path, "r") as file:
         data = json.load(file)
-    return load_ralj_data(data, neo4j_session)
+    return loadRALJData(data, neo4j_session)
 
-def load_ralj_data(data, neo4j_session):
+def loadRALJData(data, neo4j_session):
     assert type(data) == list and len(data) == 3
     dataConceptBlock = data[0]
     constructedConceptBlock = data[1]
@@ -64,14 +64,14 @@ def load_ralj_data(data, neo4j_session):
                 if not relatingJsonNodeID in loadedJsonNodeIDs:
                     uncheckedJsonNodeIDs.add(relatingJsonNodeID)
             del relatingAbstractionsByJsonNodeID[jsonNodeID]
-    return set(abstractionIDByJsonNodeID.values())
+    return abstractionIDByJsonNodeID
 
-def save_ralj_file(file_path, neo4j_session):
+def saveRALJFile(file_path, neo4j_session):
     with open(file_path, "w") as file:
-        data = save_ralj_data(neo4j_session)
+        data = saveRALJData(neo4j_session)
         json.dump(data, file)
 
-def save_ralj_data(abstractions, neo4j_session):
+def saveRALJData(abstractions, neo4j_session):
     jsonNodeIDByAbstractionID = {}
     relatingAbstractionsByAbstractionID = {}
     uncheckedAbstractions = set(abstractions)
