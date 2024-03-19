@@ -1,3 +1,5 @@
+from .network_tools import getIndirectConnections
+
 def runNavigator(context):
     # Repeat while there is no navigator exit signal
     while not context.get("navigatorExit"):
@@ -15,7 +17,7 @@ def runNavigatorSession(context):
     displayEnvironment = context.get("displayEnvironment")
     if displayEnvironment == None:
         # Create a new environment display function
-        displayEnvironment = runDisplayNodeEnvironment
+        displayEnvironment = runDisplayAbstractionEnvironment
         context["displayEnvironment"] = displayEnvironment
     # Display the environment
     displayEnvironment(context.get("displayEnvironmentContext", context))
@@ -52,3 +54,26 @@ def runDisplayAbstractionEnvironment(context):
     for connection in baseConnections:
         print("    " + ", ".join([" - " if x == None else getAbstractionName(x, context.get("getAbstractionNameContext", context)) for x in connection]) + ",")
     print("]")
+    # Get the indirect connections of the current abstraction
+    indirectConnections = getIndirectConnections(currentAbstraction, RF)
+    # Print the indirect connections
+    print("Indirect connections: [")
+    for connection in indirectConnections:
+        print("    " + ", ".join([" - " if x == None else getAbstractionName(x, context.get("getAbstractionNameContext", context)) for x in connection]) + ",")
+    print("]")
+
+def runNavigatorInput(context):
+    # Get the input
+    input = input("Enter the abstraction index or a command: ")
+    # Check if the input is a command
+    if input == "exit":
+        context["navigatorExit"] = True
+    # Check if the input is a number
+    elif input.isdigit():
+        # Get the abstraction index
+        abstractionIndex = int(input)
+        # Set the current abstraction
+        context["currentAbstraction"] = abstractionIndex
+
+def getCurrentAbstraction(context):
+    # Get a list of all abstractions

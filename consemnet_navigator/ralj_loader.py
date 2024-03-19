@@ -3,7 +3,7 @@
 #   https://github.com/gratach/thoughts/blob/master/topics/data/graph/reduced-abstraction-layer-json.md
 
 import json
-from .neo4jRALFramework import *
+from .neo4j_ral_framework import *
 
 def loadRALJFile(file_path, RALFramework):
     with open(file_path, "r") as file:
@@ -12,8 +12,8 @@ def loadRALJFile(file_path, RALFramework):
 
 def loadRALJData(data, RALFramework):
     assert type(data) == list and len(data) < 5
-    dataConceptBlock = data[0] if len(data) > 0 else {}
-    constructedConceptBlock = data[1] if len(data) > 1 else {}
+    constructedConceptBlock = data[0] if len(data) > 0 else {}
+    dataConceptBlock = data[1] if len(data) > 1 else {}
     directAbstractionBlock = data[2] if len(data) > 2 else {}
     inverseDirectAbstractionBlock = data[3] if len(data) > 3 else {}
     abstractionIDByJsonNodeID = {}
@@ -163,4 +163,4 @@ def saveRALJData(abstractions, RALFramework):
                 if not relatingAbstraction in savedAbstractions:
                     uncheckedAbstractions.add(relatingAbstraction)
             del relatingAbstractionsByAbstractionID[abstraction]
-    return [dataConceptBlock, constructedConceptBlock, directAbstractionBlock, inverseDirectAbstractionBlock]
+    return [constructedConceptBlock, dataConceptBlock, directAbstractionBlock, inverseDirectAbstractionBlock]

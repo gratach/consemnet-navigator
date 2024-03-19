@@ -29,12 +29,12 @@ with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
 
     print(saveRALJData([ca2], RF))
     loaded = loadRALJData([
-        {"string": {"hallo" : 1, "welt" : 2}},
         { 
             5 : [[0, 3, 1]],
             7 : [[0, 4, 6],
                  [0, 1, 1]]
         },
+        {"string": {"hallo" : 1, "welt" : 2}},
         {3 : 1, 6 : 5},
         {4 : 2}
     ], RF)
@@ -42,8 +42,8 @@ with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
     print("loaded", loaded)
 
     searched = RF.searchRALJPattern([
-        {"string": {"welt" : 2}},
         {7 : [[0, 4, 6], "+"],},
+        {"string": {"welt" : 2}},
         {6 : [loaded[5]]},
         {4 : 2}
         ])
@@ -51,8 +51,8 @@ with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
     print("searched", searched)
 
     searched2 = RF.searchRALJPattern([
-        {"string": {"hallo" : 1}},
         {3 : [[0, 2, 1], "+"],},
+        {"string": {"hallo" : 1}},
         ])
     
     print("searched2", searched2)

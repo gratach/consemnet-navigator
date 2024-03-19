@@ -188,8 +188,8 @@ def searchRALJPattern(pattern, neo4j_session):
     When searching for constructed concepts that can have more than the listed connections, a "+" has to be added at the end of the connection list.
     """
     assert type(pattern) == list and len(pattern) < 5
-    dataConceptBlock = pattern[0] if len(pattern) > 0 else {}
-    constructedConceptBlock = pattern[1] if len(pattern) > 1 else {}
+    constructedConceptBlock = pattern[0] if len(pattern) > 0 else {}
+    dataConceptBlock = pattern[1] if len(pattern) > 1 else {}
     directAbstractionBlock = pattern[2] if len(pattern) > 2 else {}
     inverseDirectAbstractionBlock = pattern[3] if len(pattern) > 3 else {}
     structureStringArray = []
