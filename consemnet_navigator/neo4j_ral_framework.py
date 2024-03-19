@@ -34,13 +34,15 @@ class neo4jRALFramework:
             raise ValueError("The abstraction type is not valid.")
     def searchRALJPattern(self, pattern):
         return searchRALJPattern(pattern, self.neo4j_session)
+    def listAllAbstractions(self):
+        return listAllAbstractions(self.neo4j_session)
 
 def ConstructedAbstraction(baseConnections, neo4j_session):
     """
     Creates an constructed abstraction in the neo4j database and returns the node id of the created constructed abstraction.
     """
     # Create the query string
-    structureString = f"(n:ConstructedAbstraction {{connectionCount: {len(baseConnections)}}})"
+    structureString = f"(n:ConstructedAbstraction:Abstraction {{connectionCount: {len(baseConnections)}}})"
     idDict = {}
     i = 0
     for connection in baseConnections:
@@ -94,21 +96,21 @@ def DirectDataAbstraction(datastring, formatstring, neo4j_session):
     """
     Creates the direct abstraction of a data concept in the neo4j database and returns the node id of the created direct abstraction.
     """
-    id = neo4j_session.run("MERGE (a:DirectDataAbstraction {data: $data, format: $format}) RETURN id(a)", data=datastring, format=formatstring).single().value()
+    id = neo4j_session.run("MERGE (a:DirectDataAbstraction:Abstraction {data: $data, format: $format}) RETURN id(a)", data=datastring, format=formatstring).single().value()
     return id
 
 def DirectAbstraction(abstraction, neo4j_session):
     """
     Creates the direct abstraction of an abstraction in the neo4j database and returns the node id of the created direct abstraction.
     """
-    id = neo4j_session.run("MATCH (n) WHERE id(n) = $id MERGE (a:DirectAbstraction)-[:isAbstractionOf]->(n) RETURN id(a)", id=abstraction).single().value()
+    id = neo4j_session.run("MATCH (n) WHERE id(n) = $id MERGE (a:DirectAbstraction:Abstraction)-[:isAbstractionOf]->(n) RETURN id(a)", id=abstraction).single().value()
     return id
 
 def InverseDirectAbstraction(directAbstraction, neo4j_session):
     """
     Creates the inverse direct abstraction of an abstraction in the neo4j database and returns the node id of the created direct abstraction.
     """
-    id = neo4j_session.run("MATCH (n) WHERE id(n) = $id MERGE (a:InverseDirectAbstraction)-[:isInverseAbstractionOf]->(n) RETURN id(a)", id=directAbstraction).single().value()
+    id = neo4j_session.run("MATCH (n) WHERE id(n) = $id MERGE (a:InverseDirectAbstraction:Abstraction)-[:isInverseAbstractionOf]->(n) RETURN id(a)", id=directAbstraction).single().value()
     return id
 
 def deleteAbstraction(id, neo4j_session):
@@ -186,6 +188,7 @@ def searchRALJPattern(pattern, neo4j_session):
     Searches for appearances of the given pattern in the neo4j database and returns a list of dictionaries that map the ids of the ralj pattern to the neo4j ids of the appearances.
     The pattern can also contain neo4j ids which are maked by enclosing them in square brackets.
     When searching for constructed concepts that can have more than the listed connections, a "+" has to be added at the end of the connection list.
+    When searching for direct data concepts with unknown data or format, the data or format can be set to 0.
     """
     assert type(pattern) == list and len(pattern) < 5
     constructedConceptBlock = pattern[0] if len(pattern) > 0 else {}
@@ -198,11 +201,12 @@ def searchRALJPattern(pattern, neo4j_session):
     # Evaluate the dataConceptBlock
     for format, datalist in dataConceptBlock.items():
         for data, id in datalist.items():
+            dataAndFormat = ", ".join([*([] if data == 0 else[f"data: '{data}'"]), *([] if format == 0 else[f"format: '{format}'"])])
             if type(id) == int:
-                structureStringArray.append(f"(local{id}:DirectDataAbstraction {{data: '{data}', format: '{format}'}})")
+                structureStringArray.append(f"(local{id}:DirectDataAbstraction {{{dataAndFormat}}})")
                 localIDs.add(id)
             elif type(id) == list and len(id) == 1 and type(id[0]) == int:
-                structureStringArray.append(f"(global{id[0]}:DirectDataAbstraction {{data: '{data}', format: '{format}'}})")
+                structureStringArray.append(f"(global{id[0]}:DirectDataAbstraction {{{dataAndFormat}}})")
                 globalIDs.add(id[0])
             else:
                 raise ValueError("The id of a data concept must be an int or a list with one int.")
@@ -284,4 +288,11 @@ def searchRALJPattern(pattern, neo4j_session):
     # Execute the query and return the result as a list of dictionaries
     result = neo4j_session.run(structureString).values()
     result = [dict(zip(localIDs, record)) for record in result]
+    return result
+
+def listAllAbstractions(neo4j_session):
+    """
+    Returns a list of all abstractions in the neo4j database.
+    """
+    result = neo4j_session.run("MATCH (n:Abstraction) RETURN id(n)").value()
     return result

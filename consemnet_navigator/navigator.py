@@ -48,32 +48,52 @@ def runDisplayAbstractionEnvironment(context):
     print(abstractionName)
     # Get the base connections of the current abstraction
     RF = context.get("RALFramework")
-    baseConnections = RF.getBaseConnections(currentAbstraction)
-    # Print the base connections
-    print("Base connections: [")
-    for connection in baseConnections:
-        print("    " + ", ".join([" - " if x == None else getAbstractionName(x, context.get("getAbstractionNameContext", context)) for x in connection]) + ",")
-    print("]")
+    abstractionType = RF.getAbstractionType(currentAbstraction)
+    if abstractionType == "DirectDataAbstraction":
+        data, format = RF.getAbstractionContent(currentAbstraction)
+        print("Data: " + data)
+        print("Format: " + format)
+    elif abstractionType == "DirectAbstraction":
+        innerAbstraction = RF.getAbstractionContent(currentAbstraction)
+        print("Inner abstraction: " + getAbstractionName(innerAbstraction, context.get("getAbstractionNameContext", context)))
+    elif abstractionType == "InverseDirectAbstraction":
+        innerAbstraction = RF.getAbstractionContent(currentAbstraction)
+        print("Inner abstraction: " + getAbstractionName(innerAbstraction, context.get("getAbstractionNameContext", context)))
+    elif abstractionType == "ConstructedAbstraction":
+        baseConnections = RF.getAbstractionContent(currentAbstraction)
+        # Print the base connections
+        print("Base connections: [")
+        for connection in baseConnections:
+            print("    [" + ", ".join([" - " if x == None else getAbstractionName(x, context.get("getAbstractionNameContext", context)) for x in connection]) + "],")
+        print("]")
+    print("Indirect connections: [")
     # Get the indirect connections of the current abstraction
     indirectConnections = getIndirectConnections(currentAbstraction, RF)
     # Print the indirect connections
-    print("Indirect connections: [")
     for connection in indirectConnections:
-        print("    " + ", ".join([" - " if x == None else getAbstractionName(x, context.get("getAbstractionNameContext", context)) for x in connection]) + ",")
+        print("    [" + ", ".join([" - " if x == None else getAbstractionName(x, context.get("getAbstractionNameContext", context)) for x in connection]) + "],")
     print("]")
 
 def runNavigatorInput(context):
     # Get the input
-    input = input("Enter the abstraction index or a command: ")
+    textinput = input("Enter the abstraction index or a command: ")
     # Check if the input is a command
-    if input == "exit":
+    if textinput == "exit":
         context["navigatorExit"] = True
     # Check if the input is a number
-    elif input.isdigit():
+    elif textinput.isdigit():
         # Get the abstraction index
-        abstractionIndex = int(input)
+        abstractionIndex = int(textinput)
         # Set the current abstraction
         context["currentAbstraction"] = abstractionIndex
 
 def getCurrentAbstraction(context):
     # Get a list of all abstractions
+    RF = context.get("RALFramework")
+    abstractions = RF.listAllAbstractions()
+    if len(abstractions) == 0:
+        return 0
+    return abstractions[0]
+
+def runGetAbstractionName(abstraction, context):
+    return str(abstraction)

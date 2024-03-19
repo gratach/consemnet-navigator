@@ -57,6 +57,8 @@ with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
     
     print("searched2", searched2)
 
+    runNavigator({"RALFramework" : RF})
+
     RF.deleteAbstraction(ca2)
     #deleteAbstraction(ca1, session)
     #deleteAbstraction(dda1, session)
