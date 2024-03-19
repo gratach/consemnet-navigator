@@ -3,14 +3,14 @@
 #   https://github.com/gratach/thoughts/blob/master/topics/data/graph/reduced-abstraction-layer-json.md
 
 import json
-from .neo4jabstractions import *
+from .neo4jRALFramework import *
 
-def loadRALJFile(file_path, neo4j_session):
+def loadRALJFile(file_path, RALFramework):
     with open(file_path, "r") as file:
         data = json.load(file)
-    return loadRALJData(data, neo4j_session)
+    return loadRALJData(data, RALFramework)
 
-def loadRALJData(data, neo4j_session):
+def loadRALJData(data, RALFramework):
     assert type(data) == list and len(data) < 5
     dataConceptBlock = data[0] if len(data) > 0 else {}
     constructedConceptBlock = data[1] if len(data) > 1 else {}
@@ -23,7 +23,7 @@ def loadRALJData(data, neo4j_session):
     # Load all direct data abstractions
     for format, dataConcepts in dataConceptBlock.items():
         for data, jsonNodeID in dataConcepts.items():
-            abstractionIDByJsonNodeID[jsonNodeID] = DirectDataAbstraction(data, format, neo4j_session)
+            abstractionIDByJsonNodeID[jsonNodeID] = RALFramework.DirectDataAbstraction(data, format)
             loadedJsonNodeIDs.add(jsonNodeID)
     # Load all constructed abstractions
     while len(uncheckedJsonNodeIDs) > 0:
@@ -36,7 +36,7 @@ def loadRALJData(data, neo4j_session):
                     relatingAbstractionsByJsonNodeID[innerJsonNodeID] = set()
                 relatingAbstractionsByJsonNodeID[innerJsonNodeID].add(jsonNodeID)
                 continue
-            abstractionIDByJsonNodeID[jsonNodeID] = DirectAbstraction(abstractionIDByJsonNodeID[innerJsonNodeID], neo4j_session)
+            abstractionIDByJsonNodeID[jsonNodeID] = RALFramework.DirectAbstraction(abstractionIDByJsonNodeID[innerJsonNodeID])
             loadedJsonNodeIDs.add(jsonNodeID)
         elif jsonNodeID in inverseDirectAbstractionBlock:
             # The abstraction is a direct abstraction
@@ -46,13 +46,13 @@ def loadRALJData(data, neo4j_session):
                     relatingAbstractionsByJsonNodeID[innerJsonNodeID] = set()
                 relatingAbstractionsByJsonNodeID[innerJsonNodeID].add(jsonNodeID)
                 continue
-            abstractionIDByJsonNodeID[jsonNodeID] = InverseDirectAbstraction(abstractionIDByJsonNodeID[innerJsonNodeID], neo4j_session)
+            abstractionIDByJsonNodeID[jsonNodeID] = RALFramework.InverseDirectAbstraction(abstractionIDByJsonNodeID[innerJsonNodeID])
             loadedJsonNodeIDs.add(jsonNodeID)
         else:
             # The abstraction is a constructed abstraction
-            semanticConnections = constructedConceptBlock[jsonNodeID]
+            baseConnections = constructedConceptBlock[jsonNodeID]
             allConnectedJsonNodeIDsLoaded = True
-            for connection in semanticConnections:
+            for connection in baseConnections:
                 for connectedJsonNodeID in connection:
                     if connectedJsonNodeID != 0 and connectedJsonNodeID not in loadedJsonNodeIDs:
                         allConnectedJsonNodeIDsLoaded = False
@@ -64,8 +64,8 @@ def loadRALJData(data, neo4j_session):
                     break
             if allConnectedJsonNodeIDsLoaded:
                 # Load the abstraction
-                semanticConnections = [[None if y == 0 else abstractionIDByJsonNodeID[y] for y in x] for x in semanticConnections]
-                abstractionIDByJsonNodeID[jsonNodeID] = ConstructedAbstraction(semanticConnections, neo4j_session)
+                baseConnections = [[None if y == 0 else abstractionIDByJsonNodeID[y] for y in x] for x in baseConnections]
+                abstractionIDByJsonNodeID[jsonNodeID] = RALFramework.ConstructedAbstraction(baseConnections)
                 loadedJsonNodeIDs.add(jsonNodeID)
             else:
                 continue
@@ -77,12 +77,12 @@ def loadRALJData(data, neo4j_session):
             del relatingAbstractionsByJsonNodeID[jsonNodeID]
     return abstractionIDByJsonNodeID
 
-def saveRALJFile(file_path, neo4j_session):
+def saveRALJFile(file_path, RALFramework):
     with open(file_path, "w") as file:
-        data = saveRALJData(neo4j_session)
+        data = saveRALJData(RALFramework)
         json.dump(data, file)
 
-def saveRALJData(abstractions, neo4j_session):
+def saveRALJData(abstractions, RALFramework):
     jsonNodeIDByAbstractionID = {}
     relatingAbstractionsByAbstractionID = {}
     uncheckedAbstractions = set(abstractions)
@@ -94,9 +94,9 @@ def saveRALJData(abstractions, neo4j_session):
     inverseDirectAbstractionBlock = {}
     while len(uncheckedAbstractions) > 0:
         abstraction = uncheckedAbstractions.pop()
-        abstractionType = getAbstractionType(abstraction, neo4j_session)
+        abstractionType = RALFramework.getAbstractionType(abstraction)
         if abstractionType == "DirectDataAbstraction":
-            data, format = getDirectDataAbstractionContent(abstraction, neo4j_session)
+            data, format = RALFramework.getAbstractionContent(abstraction)
             if format not in dataConceptBlock:
                 dataConceptBlock[format] = {}
             if data not in dataConceptBlock[format]:
@@ -105,7 +105,7 @@ def saveRALJData(abstractions, neo4j_session):
                 jsonNodeIndex += 1
         elif abstractionType == "ConstructedAbstraction":
             # Check if all connected abstractions are saved
-            semanticConnections = getSemanticConnections(abstraction, neo4j_session)
+            semanticConnections = RALFramework.getAbstractionContent(abstraction)
             allConnectedAbstractionsSaved = True
             for connection in semanticConnections:
                 for connectedAbstraction in connection:
@@ -128,7 +128,7 @@ def saveRALJData(abstractions, neo4j_session):
             else:
                 continue
         elif abstractionType == "DirectAbstraction":
-            innerAbstraction = getDirectAbstractionContent(abstraction, neo4j_session)
+            innerAbstraction = RALFramework.getAbstractionContent(abstraction)
             if innerAbstraction not in savedAbstractions:
                 uncheckedAbstractions.add(innerAbstraction)
                 # Add the relating abstraction
@@ -142,7 +142,7 @@ def saveRALJData(abstractions, neo4j_session):
                 directAbstractionBlock[jsonNodeIndex] = jsonNodeIDByAbstractionID[innerAbstraction]
                 jsonNodeIndex += 1
         elif abstractionType == "InverseDirectAbstraction":
-            innerAbstraction = getInverseDirectAbstractionContent(abstraction, neo4j_session)
+            innerAbstraction = RALFramework.getAbstractionContent(abstraction)
             if innerAbstraction not in savedAbstractions:
                 uncheckedAbstractions.add(innerAbstraction)
                 # Add the relating abstraction

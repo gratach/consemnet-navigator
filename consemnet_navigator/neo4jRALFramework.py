@@ -5,16 +5,45 @@
 #   direct abstraction : https://github.com/gratach/thoughts/blob/master/topics/graph/organizing/direct-abstraction.md
 #   data concept : https://github.com/gratach/thoughts/blob/master/topics/data/graph/data-concept.md
 
+class neo4jRALFramework:
+    def __init__(self, neo4j_session):
+        self.neo4j_session = neo4j_session
+    def ConstructedAbstraction(self, baseConnections):
+        return ConstructedAbstraction(baseConnections, self.neo4j_session)
+    def DirectDataAbstraction(self, datastring, formatstring):
+        return DirectDataAbstraction(datastring, formatstring, self.neo4j_session)
+    def DirectAbstraction(self, abstraction):
+        return DirectAbstraction(abstraction, self.neo4j_session)
+    def InverseDirectAbstraction(self, directAbstraction):
+        return InverseDirectAbstraction(directAbstraction, self.neo4j_session)
+    def deleteAbstraction(self, abstraction):
+        deleteAbstraction(abstraction, self.neo4j_session)
+    def getAbstractionType(self, abstraction):
+        return getAbstractionType(abstraction, self.neo4j_session)
+    def getAbstractionContent(self, abstraction):
+        type = self.getAbstractionType(abstraction)
+        if type == "DirectDataAbstraction":
+            return getDirectDataAbstractionContent(abstraction, self.neo4j_session)
+        elif type == "ConstructedAbstraction":
+            return getBaseConnections(abstraction, self.neo4j_session)
+        elif type == "DirectAbstraction":
+            return getDirectAbstractionContent(abstraction, self.neo4j_session)
+        elif type == "InverseDirectAbstraction":
+            return getInverseDirectAbstractionContent(abstraction, self.neo4j_session)
+        else:
+            raise ValueError("The abstraction type is not valid.")
+    def searchRALJPattern(self, pattern):
+        return searchRALJPattern(pattern, self.neo4j_session)
 
-def ConstructedAbstraction(semanticConnections, neo4j_session):
+def ConstructedAbstraction(baseConnections, neo4j_session):
     """
     Creates an constructed abstraction in the neo4j database and returns the node id of the created constructed abstraction.
     """
     # Create the query string
-    structureString = f"(n:ConstructedAbstraction {{connectionCount: {len(semanticConnections)}}})"
+    structureString = f"(n:ConstructedAbstraction {{connectionCount: {len(baseConnections)}}})"
     idDict = {}
     i = 0
-    for connection in semanticConnections:
+    for connection in baseConnections:
         subj, pred, obj = connection
         if not None in connection:
             raise ValueError("The semantic connection must contain at least one None value.")
@@ -110,9 +139,9 @@ def deleteAbstraction(id, neo4j_session):
     # Delete the abstraction
     neo4j_session.run("MATCH (n) WHERE id(n) = $id DETACH DELETE n", id=id)
 
-def getSemanticConnections(id, neo4j_session):
+def getBaseConnections(id, neo4j_session):
     """
-    Returns the semantic connections of the abstraction with the given id.
+    Returns the base connections of the abstraction with the given id.
     """
     ownedTriples = set(neo4j_session.run("MATCH (n)-[:ownsTriple]->(m) WHERE id(n) = $id RETURN id(m)", id=id).value())
     semanticConnections = []

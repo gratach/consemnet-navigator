@@ -10,23 +10,24 @@ PASSWORD = "password"
 DATABASE = "consemnet"
 with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
     session = driver.session(database=DATABASE)
+    RF = neo4jRALFramework(session)
 
     # Create some abstractions
-    dda1 = DirectDataAbstraction("data1", "format1", session)
-    dda2 = DirectDataAbstraction("data2", "format1", session)
+    dda1 = RF.DirectDataAbstraction("data1", "format1")
+    dda2 = RF.DirectDataAbstraction("data2", "format1")
 
-    da1 = DirectAbstraction(dda1, session)
+    da1 = RF.DirectAbstraction(dda1)
 
-    ca1 = ConstructedAbstraction([(None, da1, dda2)], session)
-    ca2 = ConstructedAbstraction([(None, dda1, ca1),
-                                (None, None, dda2)], session)
+    ca1 = RF.ConstructedAbstraction([(None, da1, dda2)])
+    ca2 = RF.ConstructedAbstraction([(None, dda1, ca1),
+                                (None, None, dda2)])
 
-    print(getSemanticConnections(ca1, session))
-    print(getSemanticConnections(ca2, session))
-    print(getAbstractionType(ca1, session))
-    print(getAbstractionType(dda2, session))
+    print(RF.getAbstractionContent(ca1))
+    print(RF.getAbstractionContent(ca2))
+    print(RF.getAbstractionType(ca1))
+    print(RF.getAbstractionType(dda2))
 
-    print(saveRALJData([ca2], session))
+    print(saveRALJData([ca2], RF))
     loaded = loadRALJData([
         {"string": {"hallo" : 1, "welt" : 2}},
         { 
@@ -36,27 +37,27 @@ with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
         },
         {3 : 1, 6 : 5},
         {4 : 2}
-    ], session)
+    ], RF)
 
     print("loaded", loaded)
 
-    searched = searchRALJPattern([
+    searched = RF.searchRALJPattern([
         {"string": {"welt" : 2}},
         {7 : [[0, 4, 6], "+"],},
         {6 : [loaded[5]]},
         {4 : 2}
-        ], session)
+        ])
     
     print("searched", searched)
 
-    searched2 = searchRALJPattern([
+    searched2 = RF.searchRALJPattern([
         {"string": {"hallo" : 1}},
         {3 : [[0, 2, 1], "+"],},
-        ], session)
+        ])
     
     print("searched2", searched2)
 
-    deleteAbstraction(ca2, session)
+    RF.deleteAbstraction(ca2)
     #deleteAbstraction(ca1, session)
     #deleteAbstraction(dda1, session)
     #deleteAbstraction(dda2, session)

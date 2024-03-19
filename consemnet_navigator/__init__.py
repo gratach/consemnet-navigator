@@ -1,2 +1,2 @@
-from .neo4jabstractions import DirectDataAbstraction, ConstructedAbstraction, DirectAbstraction, deleteAbstraction, getSemanticConnections, getAbstractionType, getDirectDataAbstractionContent, getDirectAbstractionContent, searchRALJPattern
+from .neo4jRALFramework import neo4jRALFramework
 from .ralj_loader import loadRALJFile, loadRALJData, saveRALJFile, saveRALJData
