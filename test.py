@@ -1,6 +1,7 @@
 from consemnet_navigator import *
 
 import neo4j
+import json
 
 # Create a neo4j session
 
@@ -27,34 +28,34 @@ with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
     print(RF.getAbstractionType(ca1))
     print(RF.getAbstractionType(dda2))
 
-    print(saveRALJData([ca2], RF))
+    print(json.dumps(saveRALJData([ca2], RF)))
     loaded = loadRALJData([
         { 
-            5 : [[0, 3, 1]],
-            7 : [[0, 4, 6],
-                 [0, 1, 1]]
+            "5" : [[None, "3", "1"]],
+            "7" : [[None, "4", "6"],
+                 [None, "1", "1"]]
         },
-        {"string": {"hallo" : 1, "welt" : 2}},
-        {3 : 1, 6 : 5},
-        {4 : 2}
+        {"string": {"hallo" : "1", "welt" : "2"}},
+        {"3" : "1", "6" : "5"},
+        {"4" : "2"}
     ], RF)
 
     print("loaded", loaded)
 
     searched = RF.searchRALJPattern([
-        {7 : [[0, 4, 6], "+"],},
-        {"string": {"welt" : 2}},
-        {6 : [loaded[5]]},
-        {4 : 2}
+        {"7" : [[None, "4", "6"], "+"],},
+        {"string": {"welt" : "2"}},
+        {"6" : loaded["5"]},
+        {"4" : "2"}
         ])
     
     print("searched", searched)
 
     searched2 = RF.searchRALJPattern([
-        {3 : [[0, 2, 1], "+"],},
-        {"string": {"hallo" : 1}},
+        {"3" : [[None, "2", "1"], "+"],},
+        {"string": {"hallo" : "1"}},
         ])
-    
+     
     print("searched2", searched2)
 
     runNavigator({"RALFramework" : RF})

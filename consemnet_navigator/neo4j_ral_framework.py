@@ -36,6 +36,10 @@ class neo4jRALFramework:
         return searchRALJPattern(pattern, self.neo4j_session)
     def listAllAbstractions(self):
         return listAllAbstractions(self.neo4j_session)
+    def getStringRepresentationFromAbstraction(self, abstracrion):
+        return str(abstracrion)
+    def getAbstractionFromRepresentation(self, representation):
+        return int(representation)
 
 def ConstructedAbstraction(baseConnections, neo4j_session):
     """
@@ -202,23 +206,24 @@ def searchRALJPattern(pattern, neo4j_session):
     for format, datalist in dataConceptBlock.items():
         for data, id in datalist.items():
             dataAndFormat = ", ".join([*([] if data == 0 else[f"data: '{data}'"]), *([] if format == 0 else[f"format: '{format}'"])])
-            if type(id) == int:
-                structureStringArray.append(f"(local{id}:DirectDataAbstraction {{{dataAndFormat}}})")
+            if type(id) == str:
+                idName = "local" + id.encode("utf-8").hex()
                 localIDs.add(id)
-            elif type(id) == list and len(id) == 1 and type(id[0]) == int:
-                structureStringArray.append(f"(global{id[0]}:DirectDataAbstraction {{{dataAndFormat}}})")
-                globalIDs.add(id[0])
+            elif type(id) == int:
+                idName = "global" + str(id)
+                globalIDs.add(id)
             else:
                 raise ValueError("The id of a data concept must be an int or a list with one int.")
+            structureStringArray.append(f"({idName}:DirectDataAbstraction {{{dataAndFormat}}})")
     # Evaluate the constructedConceptBlock
     tripelIndex = 0
     for id, connections in constructedConceptBlock.items():
-        if type(id) == int:
-            idName = f"local{id}"
+        if type(id) == str:
+            idName = "local" + id.encode("utf-8").hex()
             localIDs.add(id)
-        elif type(id) == list and len(id) == 1 and type(id[0]) == int:
-            idName = f"global{id[0]}"
-            globalIDs.add(id[0])
+        elif type(id) == int:
+            idName = "global" + str(id)
+            globalIDs.add(id)
         else:
             raise ValueError("The id of a constructed concept must be an int or a list with one int.")
         if len(connections) > 0 and list(connections)[-1] == "+":
@@ -228,53 +233,58 @@ def searchRALJPattern(pattern, neo4j_session):
             structureStringArray.append(f"({idName}:ConstructedAbstraction {{connectionCount: {len(connections)}}})")
         for connection in connections:
             structureStringArray.append(f"({idName})-[:ownsTriple]->(triple{tripelIndex}:AbstractionTriple)")
-            for i, triple in enumerate(connection):
-                if type(triple) == int:
-                    if triple == 0:
-                        structureStringArray.append(f"(triple{tripelIndex})-[:{['subj', 'pred', 'obj'][i]}]->({idName})")
-                    else:
-                        structureStringArray.append(f"(triple{tripelIndex})-[:{['subj', 'pred', 'obj'][i]}]->(local{triple})")
-                        localIDs.add(triple)
-                elif type(triple) == list and len(triple) == 1 and type(triple[0]) == int:
-                    structureStringArray.append(f"(triple{tripelIndex})-[:{['subj', 'pred', 'obj'][i]}]->(global{triple[0]})")
-                    globalIDs.add(triple[0])
+            for i, element in enumerate(connection):
+                if element == None:
+                    structureStringArray.append(f"(triple{tripelIndex})-[:{['subj', 'pred', 'obj'][i]}]->({idName})")
+                elif type(element) == str:
+                    elementName = "local" + element.encode("utf-8").hex()
+                    structureStringArray.append(f"(triple{tripelIndex})-[:{['subj', 'pred', 'obj'][i]}]->({elementName})")
+                    localIDs.add(element)
+                elif type(element) == int:
+                    elementName = "global" + str(element)
+                    structureStringArray.append(f"(triple{tripelIndex})-[:{['subj', 'pred', 'obj'][i]}]->({elementName})")
+                    globalIDs.add(element)
                 else:
                     raise ValueError("The id of a triple concept must be an int or a list with one int.")
             tripelIndex += 1
     # Evaluate the directAbstractionBlock
     for id, abstraction in directAbstractionBlock.items():
-        if type(id) == int:
-            idName = f"local{id}"
+        if type(id) == str:
+            idName = "local" + id.encode("utf-8").hex()
             localIDs.add(id)
-        elif type(id) == list and len(id) == 1 and type(id[0]) == int:
-            idName = f"global{id[0]}"
-            globalIDs.add(id[0])
+        elif type(id) == int:
+            idName = "global" + str(id)
+            globalIDs.add(id)
         else:
             raise ValueError("The id of a direct abstraction must be an int or a list with one int.")
-        if type(abstraction) == int:
-            structureStringArray.append(f"({idName}:DirectAbstraction)-[:isAbstractionOf]->(local{abstraction})")
+        if type(abstraction) == str:
+            abstractionName = "local" + abstraction.encode("utf-8").hex()
+            structureStringArray.append(f"({idName}:DirectAbstraction)-[:isAbstractionOf]->({abstractionName})")
             localIDs.add(abstraction)
-        elif type(abstraction) == list and len(abstraction) == 1 and type(abstraction[0]) == int:
-            structureStringArray.append(f"({idName}:DirectAbstraction)-[:isAbstractionOf]->(global{abstraction[0]})")
-            globalIDs.add(abstraction[0])
+        elif type(abstraction) == int:
+            abstractionName = "global" + str(abstraction)
+            structureStringArray.append(f"({idName}:DirectAbstraction)-[:isAbstractionOf]->({abstractionName})")
+            globalIDs.add(abstraction)
         else:
             raise ValueError("The id of an abstraction must be an int or a list with one int.")
     # Evaluate the inverseDirectAbstractionBlock
     for id, abstraction in inverseDirectAbstractionBlock.items():
-        if type(id) == int:
-            idName = f"local{id}"
+        if type(id) == str:
+            idName = "local" + id.encode("utf-8").hex()
             localIDs.add(id)
-        elif type(id) == list and len(id) == 1 and type(id[0]) == int:
-            idName = f"global{id[0]}"
-            globalIDs.add(id[0])
+        elif type(id) == int:
+            idName = "global" + str(id)
+            globalIDs.add(id)
         else:
             raise ValueError("The id of an inverse direct abstraction must be an int or a list with one int.")
-        if type(abstraction) == int:
-            structureStringArray.append(f"({idName}:InverseDirectAbstraction)-[:isInverseAbstractionOf]->(local{abstraction})")
+        if type(abstraction) == str:
+            abstractionName = "local" + abstraction.encode("utf-8").hex()
+            structureStringArray.append(f"({idName}:InverseDirectAbstraction)-[:isInverseAbstractionOf]->({abstractionName})")
             localIDs.add(abstraction)
-        elif type(abstraction) == list and len(abstraction) == 1 and type(abstraction[0]) == int:
-            structureStringArray.append(f"({idName}:InverseDirectAbstraction)-[:isInverseAbstractionOf]->(global{abstraction[0]})")
-            globalIDs.add(abstraction[0])
+        elif type(abstraction) == int:
+            abstractionName = "global" + str(abstraction)
+            structureStringArray.append(f"({idName}:InverseDirectAbstraction)-[:isInverseAbstractionOf]->({abstractionName})")
+            globalIDs.add(abstraction)
         else:
             raise ValueError("The id of an abstraction must be an int or a list with one int.")
     # Create the query string
@@ -284,7 +294,7 @@ def searchRALJPattern(pattern, neo4j_session):
     if len(localIDs) == 0:
         raise ValueError("The pattern must contain at least one local id.")
     localIDs = list(localIDs)
-    structureString += " RETURN " + ", ".join([f"id(local{id})" for id in localIDs])
+    structureString += " RETURN " + ", ".join([f"id(local{id.encode('utf-8').hex()})" for id in localIDs])
     # Execute the query and return the result as a list of dictionaries
     result = neo4j_session.run(structureString).values()
     result = [dict(zip(localIDs, record)) for record in result]

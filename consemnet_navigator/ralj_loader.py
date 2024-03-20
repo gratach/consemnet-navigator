@@ -54,7 +54,7 @@ def loadRALJData(data, RALFramework):
             allConnectedJsonNodeIDsLoaded = True
             for connection in baseConnections:
                 for connectedJsonNodeID in connection:
-                    if connectedJsonNodeID != 0 and connectedJsonNodeID not in loadedJsonNodeIDs:
+                    if connectedJsonNodeID != None and connectedJsonNodeID not in loadedJsonNodeIDs:
                         allConnectedJsonNodeIDsLoaded = False
                         if connectedJsonNodeID not in relatingAbstractionsByJsonNodeID:
                             relatingAbstractionsByJsonNodeID[connectedJsonNodeID] = set()
@@ -64,7 +64,7 @@ def loadRALJData(data, RALFramework):
                     break
             if allConnectedJsonNodeIDsLoaded:
                 # Load the abstraction
-                baseConnections = [[None if y == 0 else abstractionIDByJsonNodeID[y] for y in x] for x in baseConnections]
+                baseConnections = [[None if y == None else abstractionIDByJsonNodeID[y] for y in x] for x in baseConnections]
                 abstractionIDByJsonNodeID[jsonNodeID] = RALFramework.ConstructedAbstraction(baseConnections)
                 loadedJsonNodeIDs.add(jsonNodeID)
             else:
@@ -100,9 +100,10 @@ def saveRALJData(abstractions, RALFramework):
             if format not in dataConceptBlock:
                 dataConceptBlock[format] = {}
             if data not in dataConceptBlock[format]:
-                dataConceptBlock[format][data] = jsonNodeIndex
-                jsonNodeIDByAbstractionID[abstraction] = jsonNodeIndex
+                jsonNodeName = str(jsonNodeIndex)
                 jsonNodeIndex += 1
+                dataConceptBlock[format][data] = jsonNodeName
+                jsonNodeIDByAbstractionID[abstraction] = jsonNodeName
         elif abstractionType == "ConstructedAbstraction":
             # Check if all connected abstractions are saved
             semanticConnections = RALFramework.getAbstractionContent(abstraction)
@@ -121,10 +122,11 @@ def saveRALJData(abstractions, RALFramework):
                     break
             if allConnectedAbstractionsSaved:
                 # Save the abstraction
-                jsonNodeIDByAbstractionID[abstraction] = jsonNodeIndex
-                jsonSemanticConnections = [[0 if y == None else jsonNodeIDByAbstractionID[y] for y in x] for x in semanticConnections]
-                constructedConceptBlock[jsonNodeIndex] = jsonSemanticConnections
+                jsonNodeName = str(jsonNodeIndex)
                 jsonNodeIndex += 1
+                jsonNodeIDByAbstractionID[abstraction] = jsonNodeName
+                jsonSemanticConnections = [[None if y == None else jsonNodeIDByAbstractionID[y] for y in x] for x in semanticConnections]
+                constructedConceptBlock[jsonNodeName] = jsonSemanticConnections
             else:
                 continue
         elif abstractionType == "DirectAbstraction":
@@ -138,9 +140,10 @@ def saveRALJData(abstractions, RALFramework):
                 continue
             else:
                 # Save the direct abstraction
-                jsonNodeIDByAbstractionID[abstraction] = jsonNodeIndex
-                directAbstractionBlock[jsonNodeIndex] = jsonNodeIDByAbstractionID[innerAbstraction]
+                jsonNodeName = str(jsonNodeIndex)
                 jsonNodeIndex += 1
+                jsonNodeIDByAbstractionID[abstraction] = jsonNodeName
+                directAbstractionBlock[jsonNodeName] = jsonNodeIDByAbstractionID[innerAbstraction]
         elif abstractionType == "InverseDirectAbstraction":
             innerAbstraction = RALFramework.getAbstractionContent(abstraction)
             if innerAbstraction not in savedAbstractions:
@@ -152,9 +155,10 @@ def saveRALJData(abstractions, RALFramework):
                 continue
             else:
                 # Save the inverse direct abstraction
-                jsonNodeIDByAbstractionID[abstraction] = jsonNodeIndex
-                inverseDirectAbstractionBlock[jsonNodeIndex] = jsonNodeIDByAbstractionID[innerAbstraction]
+                jsonNodeName = str(jsonNodeIndex)
                 jsonNodeIndex += 1
+                jsonNodeIDByAbstractionID[abstraction] = jsonNodeName
+                inverseDirectAbstractionBlock[jsonNodeName] = jsonNodeIDByAbstractionID[innerAbstraction]
         # The abstraction is saved
         savedAbstractions.add(abstraction)
         # Add the relating abstractions
