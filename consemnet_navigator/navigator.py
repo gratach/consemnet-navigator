@@ -1,4 +1,5 @@
 from .network_tools import getIndirectConnections
+import json
 
 def runNavigator(context):
     # Repeat while there is no navigator exit signal
@@ -31,6 +32,7 @@ def runNavigatorSession(context):
     navigatorInput(context.get("navigatorInputContext", context))
 
 def runDisplayAbstractionEnvironment(context):
+    print()
     # Check if there is a current abstraction
     currentAbstraction = context.get("currentAbstraction")
     if currentAbstraction == None:
@@ -76,16 +78,40 @@ def runDisplayAbstractionEnvironment(context):
 
 def runNavigatorInput(context):
     # Get the input
-    textinput = input("Enter the abstraction index or a command: ")
-    # Check if the input is a command
-    if textinput == "exit":
-        context["navigatorExit"] = True
-    # Check if the input is a number
-    elif textinput.isdigit():
-        # Get the abstraction index
-        abstractionIndex = int(textinput)
-        # Set the current abstraction
-        context["currentAbstraction"] = abstractionIndex
+    textinput = input("Enter Prompt: ")
+    # Get the list of the prompts
+    navigatorPrompts = context.get("navigatorPrompts")
+    if navigatorPrompts == None:
+        # Create a new list of prompts
+        navigatorPrompts = [
+            {
+                "tryPrompt" : tryNavigateToIndex,
+                "description" : "Navigate to the abstraction with the given index.",
+                "keyword" : "<number>",
+            },
+            {
+                "tryPrompt" : tryGetNavigatorHelp,
+                "description" : "Display the navigator help.",
+                "keyword" : "help"
+            },
+            {
+                "tryPrompt" : tryExitNavigator,
+                "description" : "Exit the navigator.",
+                "keyword" : "exit"
+            },
+            {
+                "tryPrompt" : trySearchRALJPattern,
+                "description" : "Search the RALJ pattern.",
+                "keyword" : "search"
+            }
+        ]
+        context["navigatorPrompts"] = navigatorPrompts
+    # Check the input against the prompts
+    for prompt in navigatorPrompts:
+        if prompt["tryPrompt"](textinput, context):
+            return
+    print("Invalid input.")
+    input("OK")
 
 def getCurrentAbstraction(context):
     # Get a list of all abstractions
@@ -97,3 +123,59 @@ def getCurrentAbstraction(context):
 
 def runGetAbstractionName(abstraction, context):
     return str(abstraction)
+
+def tryNavigateToIndex(textinput, context):
+    # Check if the input is a number
+    if textinput.isdigit():
+        # Get the abstraction index
+        abstractionIndex = int(textinput)
+        # Check if the abstraction index is valid
+        RF = context.get("RALFramework")
+        abstractions = RF.listAllAbstractions()
+        if not abstractionIndex in abstractions:
+            print("Invalid abstraction index.")
+            input("OK")
+            return True
+        # Set the current abstraction
+        context["currentAbstraction"] = abstractionIndex
+        return True
+    return False
+
+def tryGetNavigatorHelp(textinput, context):
+    if not textinput == "help":
+        return False
+    print()
+    # Get the list of prompts
+    navigatorPrompts = context.get("navigatorPrompts")
+    # Print the prompts
+    print("Navigator Help:")
+    for prompt in navigatorPrompts:
+        print(prompt["keyword"] + ": " + prompt["description"])
+    input("OK")
+    return True
+
+def tryExitNavigator(textinput, context):
+    if not textinput == "exit":
+        return False
+    context["navigatorExit"] = True
+    return True
+
+def trySearchRALJPattern(textinput, context):
+    if not textinput == "search":
+        return False
+    pattern = input("Enter Pattern: ")
+    # Check if the input is a pattern
+    try:
+        pattern = json.loads(pattern)
+    except:
+        print("Invalid json.")
+        input("OK")
+        return True
+    RF = context.get("RALFramework")
+    try:
+        result = RF.searchRALJPattern(pattern)
+    except:
+        print("Invalid pattern.")
+        input("OK")
+        return True
+    print("Result: " + str(result))
