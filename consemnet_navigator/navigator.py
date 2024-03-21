@@ -122,24 +122,17 @@ def getCurrentAbstraction(context):
     return abstractions[0]
 
 def runGetAbstractionName(abstraction, context):
-    return str(abstraction)
+    RF = context.get("RALFramework")
+    return RF.getStringRepresentationFromAbstraction(abstraction)
 
 def tryNavigateToIndex(textinput, context):
-    # Check if the input is a number
-    if textinput.isdigit():
-        # Get the abstraction index
-        abstractionIndex = int(textinput)
-        # Check if the abstraction index is valid
-        RF = context.get("RALFramework")
-        abstractions = RF.listAllAbstractions()
-        if not abstractionIndex in abstractions:
-            print("Invalid abstraction index.")
-            input("OK")
-            return True
-        # Set the current abstraction
-        context["currentAbstraction"] = abstractionIndex
+    # Check if there is an abstraction for the given index
+    RF = context.get("RALFramework")
+    try:
+        context["currentAbstraction"] = RF.getAbstractionFromStringRepresentation(textinput)
         return True
-    return False
+    except:
+        return False
 
 def tryGetNavigatorHelp(textinput, context):
     if not textinput == "help":
