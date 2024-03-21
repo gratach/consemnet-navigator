@@ -53,6 +53,10 @@ class neo4jRALFramework:
         if not self._neo4j_session.run("MATCH (n:Abstraction) WHERE id(n) = $id RETURN id(n)", id=index).single():
             raise ValueError("The abstraction does not exist.")
         return self._getAbstractionIdWrapper(index)
+    def close(self):
+        for wrapper in self._wrappersByAbstractionID.values():
+            wrapper._safeDeletion()
+        self._neo4j_session.close()
     
 class Neo4jAbstraction:
     """
@@ -114,6 +118,8 @@ class Neo4jAbstraction:
         assert type(value) == bool
         self.RALFramework._neo4j_session.run("MATCH (n) WHERE id(n) = $id SET n.remember = $value", id=self._id, value=value)
     def __del__(self):
+        self._safeDeletion()
+    def _safeDeletion(self):
         if self._id == None:
             return
         id = self.id

@@ -61,11 +61,12 @@ def test():
         
         print("searched2", searched2)
 
-        dda1.forceDeletion()
+        #dda1.forceDeletion()
 
-        runNavigator({"RALFramework" : RF})
+        #runNavigator({"RALFramework" : RF})
         #deleteAbstraction(ca1, session)
         #deleteAbstraction(dda1, session)
         #deleteAbstraction(dda2, session)
+        RF.close()
 test()
 print("done")
