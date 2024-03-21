@@ -16,13 +16,15 @@ def test():
 
         # Create some abstractions
         dda1 = RF.DirectDataAbstraction("data1", "format1")
-        dda2 = RF.DirectDataAbstraction("data2", "format1")
+        dda2 = RF.DirectDataAbstraction("data2", "format2")
 
         da1 = RF.DirectAbstraction(dda1)
 
         ca1 = RF.ConstructedAbstraction([(0, da1, dda2)])
         ca2 = RF.ConstructedAbstraction([(0, dda1, ca1),
                                     (0, 0, dda2)])
+        
+        ca2.remembered = True
 
         print(RF.getAbstractionContent(ca1))
         print(RF.getAbstractionContent(ca2))
@@ -58,6 +60,8 @@ def test():
             ])
         
         print("searched2", searched2)
+
+        dda1.forceDeletion()
 
         runNavigator({"RALFramework" : RF})
         #deleteAbstraction(ca1, session)
