@@ -28,11 +28,11 @@ class neo4jRALFramework:
     def deleteAbstraction(self, abstraction):
         deleteAbstraction(abstraction, self._neo4j_session)
     def getAbstractionType(self, abstraction):
-        return getAbstractionType(abstraction, self._neo4j_session)
+        return getAbstractionType(abstraction.id, self)
     def getAbstractionContent(self, abstraction):
         type = self.getAbstractionType(abstraction)
         if type == "DirectDataAbstraction":
-            return getDirectDataAbstractionContent(abstraction, self._neo4j_session)
+            return getDirectDataAbstractionContent(abstraction, self)
         elif type == "ConstructedAbstraction":
             return getBaseConnections(abstraction, self)
         elif type == "DirectAbstraction":
@@ -61,15 +61,152 @@ class Neo4jAbstraction:
     def __init__(self, abstractionId, RALFramework):
         self._id = abstractionId
         self.RALFramework = RALFramework
+        self._type = getAbstractionType(abstractionId, RALFramework)
+        self._remembered = isAbstractionRemembered(self, RALFramework)
+        # Set remembered to false if not defined
+        if self._remembered == None:
+            self._remembered = False
+            RALFramework._neo4j_session.run("MATCH (n) WHERE id(n) = $id SET n.remember = false", id=self._id)
+        self._data, self._format = getDirectDataAbstractionContent(self, RALFramework) if self._type == "DirectDataAbstraction" else (None, None)
+        self._baseConnections = getBaseConnections(self, RALFramework) if self._type == "ConstructedAbstraction" else None
+        self._innerAbstraction = getDirectAbstractionContent(self, RALFramework) if self._type == "DirectAbstraction" else None
+        self._outerAbstraction = getInverseDirectAbstractionContent(self, RALFramework) if self._type == "InverseDirectAbstraction" else None
     
     @property
     def id(self):
         if id == None:
             raise ValueError("The abstraction has been deleted.")
         return self._id
+    @property
+    def type(self):
+        if id == None:
+            raise ValueError("The abstraction has been deleted.")
+        return self._type
+    @property
+    def data(self):
+        if id == None:
+            raise ValueError("The abstraction has been deleted.")
+        return self._data
+    @property
+    def format(self):
+        if id == None:
+            raise ValueError("The abstraction has been deleted.")
+        return self._format
+    @property
+    def baseConnections(self):
+        if id == None:
+            raise ValueError("The abstraction has been deleted.")
+        return self._baseConnections
+    @property
+    def innerAbstraction(self):
+        if id == None:
+            raise ValueError("The abstraction has been deleted.")
+        return self._innerAbstraction
+    @property
+    def outerAbstraction(self):
+        if id == None:
+            raise ValueError("The abstraction has been deleted.")
+        return self._outerAbstraction
+    @property
+    def remembered(self):
+        if id == None:
+            raise ValueError("The abstraction has been deleted.")
+        return self._remembered
+    
+    def __del__(self):
+        id = self.id
+        self._id = None
+        # Check if the abstraction can be savely deleted from the neo4j database
+        idsToCheckForDeletion = set([id])
+        while len(idsToCheckForDeletion) > 0:
+            id = idsToCheckForDeletion.pop()
+            idsToCheckForDeletion |= checkForSafeAbstractionDeletion(id, self.RALFramework)
     
     def __repr__(self):
         return "Abstraction(" + self.RALFramework.getStringRepresentationFromAbstraction(self) + ")"
+    
+def checkForSafeAbstractionDeletion(id, RALFramework):
+    """
+    Checks if the abstraction with the given id can be savely deleted from the neo4j database.
+    Returns a set of the abstraction ids that should also be checked for safe deletion.
+    """
+    # Check if the abstraction is remembered
+    if RALFramework._neo4j_session.run("MATCH (n) WHERE id(n) = $id RETURN n.remember", id=id).single().value():
+        return set()
+    # Check if tere is a active wrapper for the abstraction
+    wrapper = RALFramework._wrappersByAbstractionID.get(id)
+    if wrapper != None and wrapper._id != None:
+        return set()
+    # Check if there is a direct abstraction of the abstraction
+    directAbstraction = RALFramework._neo4j_session.run("MATCH (n)-[:isAbstractionOf]->(m) WHERE id(m) = $id RETURN id(n)", id=id).single()
+    if directAbstraction != None:
+        return set()
+    # Check if there is an inverse direct abstraction of the abstraction
+    inverseDirectAbstraction = RALFramework._neo4j_session.run("MATCH (n)-[:isInverseAbstractionOf]->(m) WHERE id(m) = $id RETURN id(n)", id=id).single()
+    if inverseDirectAbstraction != None:
+        return set()
+    # Get all the ids of the connected AbstractionTriples
+    connectedTriples = set()
+    for conn in ["subj", "pred", "obj"]:
+        result = RALFramework._neo4j_session.run(f"MATCH (t:AbstractionTriple)-[:{conn}]->(n) WHERE id(n) = $id RETURN id(t)", id=id).value()
+        for record in result:
+            connectedTriples.add(record)
+    # Check if all of the connected AbstractionTriples are owned by the removed abstraction
+    ownedTriples = set(RALFramework._neo4j_session.run("MATCH (n)-[:ownsTriple]->(m) WHERE id(n) = $id RETURN id(m)", id=id).value())
+    if connectedTriples != ownedTriples:
+        return set()
+    # Get all the ids of the connected abstractions
+    connectedAbstractions = set()
+    for triple in connectedTriples:
+        for conn in ["subj", "pred", "obj"]:
+            result = RALFramework._neo4j_session.run(f"MATCH (n)-[:{conn}]->(m) WHERE id(n) = $id RETURN id(m)", id=triple).value()
+            for record in result:
+                if record != id:
+                    connectedAbstractions.add(record)
+    # Get the id of the inner abstraction of the abstraction
+    innerAbstraction = RALFramework._neo4j_session.run("MATCH (n)-[:isAbstractionOf]->(m) WHERE id(n) = $id RETURN id(m)", id=id).single()
+    if innerAbstraction != None:
+        connectedAbstractions.add(innerAbstraction.value())
+    # Get the id of the outer abstraction of the abstraction
+    outerAbstraction = RALFramework._neo4j_session.run("MATCH (n)-[:isInverseAbstractionOf]->(m) WHERE id(n) = $id RETURN id(m)", id=id).single()
+    if outerAbstraction != None:
+        connectedAbstractions.add(outerAbstraction.value())
+    # Delete the owned AbstractionTriples
+    for triple in ownedTriples:
+        RALFramework._neo4j_session.run("MATCH (n) WHERE id(n) = $id DETACH DELETE n", id=triple)
+    # Delete the abstraction
+    RALFramework._neo4j_session.run("MATCH (n) WHERE id(n) = $id DETACH DELETE n", id=id)
+    return connectedAbstractions
+
+def deleteAbstraction(id, framework):
+    """
+    Deletes the abstraction with the given id from the neo4j database.
+    """
+    # TODO : replace id by wrapper
+    neo4j_session = framework._neo4j_session
+    # Check if there is a direct abstraction of the abstraction
+    directAbstraction = neo4j_session.run("MATCH (n)-[:isAbstractionOf]->(m) WHERE id(m) = $id RETURN id(n)", id=id).single()
+    if directAbstraction != None:
+        raise ValueError("The abstraction can not be deleted because there is a DirectAbstraction that relies on it.")
+    # Check if there is an inverse direct abstraction of the abstraction
+    inverseDirectAbstraction = neo4j_session.run("MATCH (n)-[:isInverseAbstractionOf]->(m) WHERE id(m) = $id RETURN id(n)", id=id).single()
+    if inverseDirectAbstraction != None:
+        raise ValueError("The abstraction can not be deleted because there is an InverseDirectAbstraction that relies on it.")
+    # Get all the ids of the connected AbstractionTriples
+    connectedTriples = set()
+    for conn in ["subj", "pred", "obj"]:
+        result = neo4j_session.run(f"MATCH (t:AbstractionTriple)-[:{conn}]->(n) WHERE id(n) = $id RETURN id(t)", id=id).value()
+        for record in result:
+            connectedTriples.add(record)
+    # Check if all of the connected AbstractionTriples are owned by the removed abstraction
+    ownedTriples = set(neo4j_session.run("MATCH (n)-[:ownsTriple]->(m) WHERE id(n) = $id RETURN id(m)", id=id).value())
+    if connectedTriples != ownedTriples:
+        raise ValueError("The abstraction can not be deleted because there are ConstructedAbstractions that rely on it.")
+    # Delete the owned AbstractionTriples
+    for triple in ownedTriples:
+        neo4j_session.run("MATCH (n) WHERE id(n) = $id DETACH DELETE n", id=triple)
+    # Delete the abstraction
+    neo4j_session.run("MATCH (n) WHERE id(n) = $id DETACH DELETE n", id=id)
 
 def ConstructedAbstraction(baseConnections, framework):
     """
@@ -151,35 +288,12 @@ def InverseDirectAbstraction(directAbstraction, framework):
     id = neo4j_session.run("MATCH (n) WHERE id(n) = $id MERGE (a:InverseDirectAbstraction:Abstraction)-[:isInverseAbstractionOf]->(n) RETURN id(a)", id=directAbstraction.id).single().value()
     return framework._getAbstractionIdWrapper(id)
 
-def deleteAbstraction(id, framework):
+def isAbstractionRemembered(abstraction, framework):
     """
-    Deletes the abstraction with the given id from the neo4j database.
+    Returns whether the abstraction with the given id is remembered in the neo4j database.
     """
-    # TODO : replace id by wrapper
     neo4j_session = framework._neo4j_session
-    # Check if there is a direct abstraction of the abstraction
-    directAbstraction = neo4j_session.run("MATCH (n)-[:isAbstractionOf]->(m) WHERE id(m) = $id RETURN id(n)", id=id).single()
-    if directAbstraction != None:
-        raise ValueError("The abstraction can not be deleted because there is a DirectAbstraction that relies on it.")
-    # Check if there is an inverse direct abstraction of the abstraction
-    inverseDirectAbstraction = neo4j_session.run("MATCH (n)-[:isInverseAbstractionOf]->(m) WHERE id(m) = $id RETURN id(n)", id=id).single()
-    if inverseDirectAbstraction != None:
-        raise ValueError("The abstraction can not be deleted because there is an InverseDirectAbstraction that relies on it.")
-    # Get all the ids of the connected AbstractionTriples
-    connectedTriples = set()
-    for conn in ["subj", "pred", "obj"]:
-        result = neo4j_session.run(f"MATCH (t:AbstractionTriple)-[:{conn}]->(n) WHERE id(n) = $id RETURN id(t)", id=id).value()
-        for record in result:
-            connectedTriples.add(record)
-    # Check if all of the connected AbstractionTriples are owned by the removed abstraction
-    ownedTriples = set(neo4j_session.run("MATCH (n)-[:ownsTriple]->(m) WHERE id(n) = $id RETURN id(m)", id=id).value())
-    if connectedTriples != ownedTriples:
-        raise ValueError("The abstraction can not be deleted because there are ConstructedAbstractions that rely on it.")
-    # Delete the owned AbstractionTriples
-    for triple in ownedTriples:
-        neo4j_session.run("MATCH (n) WHERE id(n) = $id DETACH DELETE n", id=triple)
-    # Delete the abstraction
-    neo4j_session.run("MATCH (n) WHERE id(n) = $id DETACH DELETE n", id=id)
+    return neo4j_session.run("MATCH (n) WHERE id(n) = $id RETURN n.remember", id=abstraction.id).single().value()
 
 def getBaseConnections(abstraction, framework):
     """
@@ -198,17 +312,19 @@ def getBaseConnections(abstraction, framework):
                                     0 if obj == id else framework._getAbstractionIdWrapper(obj)))
     return frozenset(semanticConnections)
 
-def getAbstractionType(abstraction, neo4j_session):
+def getAbstractionType(abstractionId, framework):
     """
     Returns the type of the abstraction with the given id.
     """
-    type = neo4j_session.run("MATCH (n) WHERE id(n) = $id RETURN labels(n)", id=abstraction.id).single().value()
-    return type[0]
+    neo4j_session = framework._neo4j_session
+    type = neo4j_session.run("MATCH (n) WHERE id(n) = $id RETURN labels(n)", id=abstractionId).single().value()
+    return set({"ConstructedAbstraction", "DirectDataAbstraction", "DirectAbstraction", "InverseDirectAbstraction"}).intersection(type).pop()
 
-def getDirectDataAbstractionContent(abstraction, neo4j_session):
+def getDirectDataAbstractionContent(abstraction, framework):
     """
     Returns the data and format of the direct abstraction with the given id.
     """
+    neo4j_session = framework._neo4j_session
     data = neo4j_session.run("MATCH (n:DirectDataAbstraction) WHERE id(n) = $id RETURN n.data", id=abstraction.id).single().value()
     format = neo4j_session.run("MATCH (n:DirectDataAbstraction) WHERE id(n) = $id RETURN n.format", id=abstraction.id).single().value()
     return (data, format)
