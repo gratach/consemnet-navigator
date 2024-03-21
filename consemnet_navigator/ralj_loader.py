@@ -54,7 +54,7 @@ def loadRALJData(data, RALFramework):
             allConnectedJsonNodeIDsLoaded = True
             for connection in baseConnections:
                 for connectedJsonNodeID in connection:
-                    if connectedJsonNodeID != None and connectedJsonNodeID not in loadedJsonNodeIDs:
+                    if connectedJsonNodeID != 0 and connectedJsonNodeID not in loadedJsonNodeIDs:
                         allConnectedJsonNodeIDsLoaded = False
                         if connectedJsonNodeID not in relatingAbstractionsByJsonNodeID:
                             relatingAbstractionsByJsonNodeID[connectedJsonNodeID] = set()
@@ -64,7 +64,7 @@ def loadRALJData(data, RALFramework):
                     break
             if allConnectedJsonNodeIDsLoaded:
                 # Load the abstraction
-                baseConnections = [[None if y == None else abstractionIDByJsonNodeID[y] for y in x] for x in baseConnections]
+                baseConnections = [[0 if y == 0 else abstractionIDByJsonNodeID[y] for y in x] for x in baseConnections]
                 abstractionIDByJsonNodeID[jsonNodeID] = RALFramework.ConstructedAbstraction(baseConnections)
                 loadedJsonNodeIDs.add(jsonNodeID)
             else:
@@ -110,7 +110,7 @@ def saveRALJData(abstractions, RALFramework):
             allConnectedAbstractionsSaved = True
             for connection in semanticConnections:
                 for connectedAbstraction in connection:
-                    if connectedAbstraction != None and connectedAbstraction not in savedAbstractions:
+                    if connectedAbstraction != 0 and connectedAbstraction not in savedAbstractions:
                         uncheckedAbstractions.add(connectedAbstraction)
                         allConnectedAbstractionsSaved = False
                         # Add the relating abstraction
@@ -125,7 +125,7 @@ def saveRALJData(abstractions, RALFramework):
                 jsonNodeName = str(jsonNodeIndex)
                 jsonNodeIndex += 1
                 jsonNodeIDByAbstractionID[abstraction] = jsonNodeName
-                jsonSemanticConnections = [[None if y == None else jsonNodeIDByAbstractionID[y] for y in x] for x in semanticConnections]
+                jsonSemanticConnections = [[0 if y == 0 else jsonNodeIDByAbstractionID[y] for y in x] for x in semanticConnections]
                 constructedConceptBlock[jsonNodeName] = jsonSemanticConnections
             else:
                 continue

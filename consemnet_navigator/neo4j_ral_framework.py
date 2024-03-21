@@ -50,7 +50,7 @@ class neo4jRALFramework:
     def getAbstractionFromStringRepresentation(self, representation):
         index = int(representation)
         # Check if the abstraction exists
-        if not self._neo4j_session.run("MATCH (n) WHERE id(n) = $id RETURN id(n)", id=index).single():
+        if not self._neo4j_session.run("MATCH (n:Abstraction) WHERE id(n) = $id RETURN id(n)", id=index).single():
             raise ValueError("The abstraction does not exist.")
         return self._getAbstractionIdWrapper(index)
     
@@ -82,23 +82,23 @@ def ConstructedAbstraction(baseConnections, framework):
     i = 0
     for connection in baseConnections:
         subj, pred, obj = connection
-        if not None in connection:
+        if not 0 in connection:
             raise ValueError("The semantic connection must contain at least one None value.")
-        if subj == None:
+        if subj == 0:
             subj = "(n)"
         else:
             assert type(subj) == Neo4jAbstraction
             idDict[f"c{i}"] = subj.id
             subj = f"(c{i})"
             i += 1
-        if pred == None:
+        if pred == 0:
             pred = "(n)"
         else:
             assert type(pred) == Neo4jAbstraction
             idDict[f"c{i}"] = pred.id
             pred = f"(c{i})"
             i += 1
-        if obj == None:
+        if obj == 0:
             obj = "(n)"
         else:
             assert type(obj) == Neo4jAbstraction
@@ -193,9 +193,9 @@ def getBaseConnections(abstraction, framework):
         subj = neo4j_session.run("MATCH (t)-[:subj]->(n) WHERE id(t) = $id RETURN id(n)", id=triple).single().value()
         pred = neo4j_session.run("MATCH (t)-[:pred]->(n) WHERE id(t) = $id RETURN id(n)", id=triple).single().value()
         obj = neo4j_session.run("MATCH (t)-[:obj]->(n) WHERE id(t) = $id RETURN id(n)", id=triple).single().value()
-        semanticConnections.append((None if subj == id else framework._getAbstractionIdWrapper(subj),
-                                    None if pred == id else framework._getAbstractionIdWrapper(pred), 
-                                    None if obj == id else framework._getAbstractionIdWrapper(obj)))
+        semanticConnections.append((0 if subj == id else framework._getAbstractionIdWrapper(subj),
+                                    0 if pred == id else framework._getAbstractionIdWrapper(pred), 
+                                    0 if obj == id else framework._getAbstractionIdWrapper(obj)))
     return frozenset(semanticConnections)
 
 def getAbstractionType(abstraction, neo4j_session):
@@ -276,7 +276,7 @@ def searchRALJPattern(pattern, framework):
         for connection in connections:
             structureStringArray.append(f"({refName})-[:ownsTriple]->(triple{tripelIndex}:AbstractionTriple)")
             for i, element in enumerate(connection):
-                if element == None:
+                if element == 0:
                     structureStringArray.append(f"(triple{tripelIndex})-[:{['subj', 'pred', 'obj'][i]}]->({refName})")
                 elif type(element) == str:
                     elementName = "local" + element.encode("utf-8").hex()

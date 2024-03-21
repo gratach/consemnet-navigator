@@ -66,7 +66,7 @@ def runDisplayAbstractionEnvironment(context):
         # Print the base connections
         print("Base connections: [")
         for connection in baseConnections:
-            print("    [" + ", ".join([" - " if x == None else getAbstractionName(x, context.get("getAbstractionNameContext", context)) for x in connection]) + "],")
+            print("    [" + ", ".join([" - " if x == 0 else getAbstractionName(x, context.get("getAbstractionNameContext", context)) for x in connection]) + "],")
         print("]")
     print("Indirect connections: [")
     # Get the indirect connections of the current abstraction

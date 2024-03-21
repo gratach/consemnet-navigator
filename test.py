@@ -19,9 +19,9 @@ with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
 
     da1 = RF.DirectAbstraction(dda1)
 
-    ca1 = RF.ConstructedAbstraction([(None, da1, dda2)])
-    ca2 = RF.ConstructedAbstraction([(None, dda1, ca1),
-                                (None, None, dda2)])
+    ca1 = RF.ConstructedAbstraction([(0, da1, dda2)])
+    ca2 = RF.ConstructedAbstraction([(0, dda1, ca1),
+                                (0, 0, dda2)])
 
     print(RF.getAbstractionContent(ca1))
     print(RF.getAbstractionContent(ca2))
@@ -31,9 +31,9 @@ with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
     print(json.dumps(saveRALJData([ca2], RF)))
     loaded = loadRALJData([
         { 
-            "5" : [[None, "3", "1"]],
-            "7" : [[None, "4", "6"],
-                 [None, "1", "1"]]
+            "5" : [[0, "3", "1"]],
+            "7" : [[0, "4", "6"],
+                 [0, "1", "1"]]
         },
         {"string": {"hallo" : "1", "welt" : "2"}},
         {"3" : "1", "6" : "5"},
@@ -43,7 +43,7 @@ with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
     print("loaded", loaded)
 
     searched = RF.searchRALJPattern([
-        {"7" : [[None, "4", "6"], "+"],},
+        {"7" : [[0, "4", "6"], "+"],},
         {"string": {"welt" : "2"}},
         {"6" : loaded["5"]},
         {"4" : "2"}
@@ -52,7 +52,7 @@ with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
     print("searched", searched)
 
     searched2 = RF.searchRALJPattern([
-        {"3" : [[None, "2", "1"], "+"],},
+        {"3" : [[0, "2", "1"], "+"],},
         {"string": {"hallo" : "1"}},
         ])
      
