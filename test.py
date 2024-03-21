@@ -33,12 +33,12 @@ def test():
 
         print(json.dumps(saveRALJData([ca2], RF)))
         loaded = loadRALJData([
+            {"string": {"hallo" : "1", "welt" : "2"}},
             { 
                 "5" : [[0, "3", "1"]],
                 "7" : [[0, "4", "6"],
                     [0, "1", "1"]]
             },
-            {"string": {"hallo" : "1", "welt" : "2"}},
             {"3" : "1", "6" : "5"},
             {"4" : "2"}
         ], RF)
@@ -46,8 +46,8 @@ def test():
         print("loaded", loaded)
 
         searched = RF.searchRALJPattern([
-            {"7" : [[0, "4", "6"], "+"],},
             {"string": {"welt" : "2"}},
+            {"7" : [[0, "4", "6"], "+"],},
             {"6" : loaded["5"]},
             {"4" : "2"}
             ])
@@ -55,15 +55,15 @@ def test():
         print("searched", searched)
 
         searched2 = RF.searchRALJPattern([
-            {"3" : [[0, "2", "1"], "+"],},
             {"string": {"hallo" : "1"}},
+            {"3" : [[0, "2", "1"], "+"],},
             ])
         
         print("searched2", searched2)
 
-        #dda1.forceDeletion()
+        dda1.forceDeletion()
 
-        #runNavigator({"RALFramework" : RF})
+        runNavigator({"RALFramework" : RF})
         #deleteAbstraction(ca1, session)
         #deleteAbstraction(dda1, session)
         #deleteAbstraction(dda2, session)

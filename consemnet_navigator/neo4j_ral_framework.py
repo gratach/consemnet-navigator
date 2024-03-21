@@ -377,8 +377,8 @@ def searchRALJPattern(pattern, framework):
     # TODO : replace id by wrapper
     neo4j_session = framework._neo4j_session
     assert type(pattern) == list and len(pattern) < 5
-    constructedConceptBlock = pattern[0] if len(pattern) > 0 else {}
-    dataConceptBlock = pattern[1] if len(pattern) > 1 else {}
+    dataConceptBlock = pattern[0] if len(pattern) > 0 else {}
+    constructedConceptBlock = pattern[1] if len(pattern) > 1 else {}
     directAbstractionBlock = pattern[2] if len(pattern) > 2 else {}
     inverseDirectAbstractionBlock = pattern[3] if len(pattern) > 3 else {}
     structureStringArray = []

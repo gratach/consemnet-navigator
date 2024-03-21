@@ -12,8 +12,8 @@ def loadRALJFile(file_path, RALFramework):
 
 def loadRALJData(data, RALFramework):
     assert type(data) == list and len(data) < 5
-    constructedConceptBlock = data[0] if len(data) > 0 else {}
-    dataConceptBlock = data[1] if len(data) > 1 else {}
+    dataConceptBlock = data[0] if len(data) > 0 else {}
+    constructedConceptBlock = data[1] if len(data) > 1 else {}
     directAbstractionBlock = data[2] if len(data) > 2 else {}
     inverseDirectAbstractionBlock = data[3] if len(data) > 3 else {}
     abstractionIDByJsonNodeID = {}
@@ -167,4 +167,4 @@ def saveRALJData(abstractions, RALFramework):
                 if not relatingAbstraction in savedAbstractions:
                     uncheckedAbstractions.add(relatingAbstraction)
             del relatingAbstractionsByAbstractionID[abstraction]
-    return [constructedConceptBlock, dataConceptBlock, directAbstractionBlock, inverseDirectAbstractionBlock]
+    return [dataConceptBlock, constructedConceptBlock, directAbstractionBlock, inverseDirectAbstractionBlock]
