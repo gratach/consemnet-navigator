@@ -41,8 +41,8 @@ class neo4jRALFramework:
             return getInverseDirectAbstractionContent(abstraction, self)
         else:
             raise ValueError("The abstraction type is not valid.")
-    def searchRALJPattern(self, pattern):
-        return searchRALJPattern(pattern, self)
+    def searchRALJPattern(self, pattern = [], directDataAbstractions = None, constructedAbstractions = None, directAbstractions = None, inverseDirectAbstractions = None, abstractionTriples = None):
+        return searchRALJPattern(pattern, self, directDataAbstractions, constructedAbstractions, directAbstractions, inverseDirectAbstractions, abstractionTriples)
     def listAllAbstractions(self):
         return listAllAbstractions(self)
     def getStringRepresentationFromAbstraction(self, abstracrion):
@@ -367,20 +367,32 @@ def getInverseDirectAbstractionContent(abstraction, framework):
     neo4j_session = framework._neo4j_session
     return framework._getAbstractionIdWrapper(neo4j_session.run("MATCH (n)-[:isInverseAbstractionOf]->(m) WHERE id(n) = $id RETURN id(m)", id=abstraction.id).single().value())
 
-def searchRALJPattern(pattern, framework):
+def searchRALJPattern(pattern, framework, directDataAbstractions = None, constructedAbstractions = None, directAbstractions = None, inverseDirectAbstractions = None, abstractionTriples = None):
     """
     Searches for appearances of the given pattern in the neo4j database and returns a list of dictionaries that map the ids of the ralj pattern to the neo4j ids of the appearances.
     The pattern can also contain neo4j ids which are maked by enclosing them in square brackets.
     When searching for constructed concepts that can have more than the listed connections, a "+" has to be added at the end of the connection list.
     When searching for direct data concepts with unknown data or format, the data or format can be set to 0.
     """
-    # TODO : replace id by wrapper
+    # Load the neo4j session
     neo4j_session = framework._neo4j_session
-    assert type(pattern) == list and len(pattern) < 5
+    # Load the blocks of the pattern
+    assert type(pattern) == list and len(pattern) < 6
     dataConceptBlock = pattern[0] if len(pattern) > 0 else {}
+    if directDataAbstractions != None:
+        dataConceptBlock.update(directDataAbstractions)
     constructedConceptBlock = pattern[1] if len(pattern) > 1 else {}
+    if constructedAbstractions != None:
+        constructedConceptBlock.update(constructedAbstractions)
     directAbstractionBlock = pattern[2] if len(pattern) > 2 else {}
+    if directAbstractions != None:
+        directAbstractionBlock.update(directAbstractions)
     inverseDirectAbstractionBlock = pattern[3] if len(pattern) > 3 else {}
+    if inverseDirectAbstractions != None:
+        inverseDirectAbstractionBlock.update(inverseDirectAbstractions)
+    abstractionTriplesBlock = pattern[4] if len(pattern) > 4 else []
+    if abstractionTriples != None:
+        abstractionTriplesBlock.extend(abstractionTriples)
     structureStringArray = []
     globalIDs = set()
     localIDs = set()
@@ -469,6 +481,34 @@ def searchRALJPattern(pattern, framework):
             globalIDs.add(abstraction.id)
         else:
             raise ValueError("The id of an abstraction must be an int or a list with one int.")
+    # Evaluate the abstractionTriplesBlock
+    for subj, pred, obj in abstractionTriplesBlock:
+        if type(subj) == str:
+            subjName = "local" + subj.encode("utf-8").hex()
+            localIDs.add(subj)
+        elif type(subj) == Neo4jAbstraction:
+            subjName = "global" + str(subj.id)
+            globalIDs.add(subj.id)
+        else:
+            raise ValueError("The id of a triple concept must be an int or a list with one int.")
+        if type(pred) == str:
+            predName = "local" + pred.encode("utf-8").hex()
+            localIDs.add(pred)
+        elif type(pred) == Neo4jAbstraction:
+            predName = "global" + str(pred.id)
+            globalIDs.add(pred.id)
+        else:
+            raise ValueError("The id of a triple concept must be an int or a list with one int.")
+        if type(obj) == str:
+            objName = "local" + obj.encode("utf-8").hex()
+            localIDs.add(obj)
+        elif type(obj) == Neo4jAbstraction:
+            objName = "global" + str(obj.id)
+            globalIDs.add(obj.id)
+        else:
+            raise ValueError("The id of a triple concept must be an int or a list with one int.")
+        structureStringArray.append(f"(triple{tripelIndex}:AbstractionTriple)-[:subj]->({subjName}), (triple{tripelIndex})-[:pred]->({predName}), (triple{tripelIndex})-[:obj]->({objName})")
+        tripelIndex += 1
     # Create the query string
     structureString = "MATCH " + ", ".join(structureStringArray)
     if len(globalIDs) > 0:
