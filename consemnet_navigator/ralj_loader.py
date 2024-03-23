@@ -167,4 +167,4 @@ def saveRALJData(abstractions, RALFramework):
                 if not relatingAbstraction in savedAbstractions:
                     uncheckedAbstractions.add(relatingAbstraction)
             del relatingAbstractionsByAbstractionID[abstraction]
-    return [dataConceptBlock, constructedConceptBlock, directAbstractionBlock, inverseDirectAbstractionBlock]
+    return [dataConceptBlock, constructedConceptBlock, *([directAbstractionBlock, inverseDirectAbstractionBlock] if len(directAbstractionBlock) > 0 or len(inverseDirectAbstractionBlock) > 0 else [])]

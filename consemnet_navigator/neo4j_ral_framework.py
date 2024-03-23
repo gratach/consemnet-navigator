@@ -25,8 +25,6 @@ class neo4jRALFramework:
         return DirectAbstraction(abstraction, self)
     def InverseDirectAbstraction(self, directAbstraction):
         return InverseDirectAbstraction(directAbstraction, self)
-    def deleteAbstraction(self, abstraction):
-        deleteAbstraction(abstraction, self._neo4j_session)
     def getAbstractionType(self, abstraction):
         return getAbstractionType(abstraction.id, self)
     def getAbstractionContent(self, abstraction):
@@ -57,6 +55,10 @@ class neo4jRALFramework:
         for wrapper in self._wrappersByAbstractionID.values():
             wrapper._safeDeletion()
         self._neo4j_session.close()
+    def isValidAbstraction(self, abstraction):
+        if not type(abstraction) == Neo4jAbstraction:
+            return False
+        return abstraction.id != None
     
 class Neo4jAbstraction:
     """
