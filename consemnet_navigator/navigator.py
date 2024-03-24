@@ -1,4 +1,5 @@
 from .network_tools import getIndirectConnections
+from .ral_vocabulary import *
 import json
 
 def runNavigator(context):
@@ -172,3 +173,28 @@ def trySearchRALJPattern(textinput, context):
         input("OK")
         return True
     print("Result: " + str(result))
+
+
+def runDisplayRealWorldConceptEnvironment(context):
+    print()
+    # Check if there is a current abstraction
+    currentAbstraction = context.get("currentAbstraction")
+    if currentAbstraction == None:
+        # Create a new current abstraction
+        currentAbstraction = getCurrentAbstraction(context.get("getCurrentAbstractionContext", context))
+        context["currentAbstraction"] = currentAbstraction
+    # Check if there is a getAbstractionGroup function
+    getAbstractionGroup = context.get("getAbstractionGroup")
+    if getAbstractionGroup == None:
+        # Create a new getAbstractionGroup function
+        getAbstractionGroup = runGetAbstractionGroup
+        context["getAbstractionGroup"] = getAbstractionGroup
+    # Get the abstraction group
+    abstractionGroup = getAbstractionGroup(currentAbstraction, context.get("getAbstractionGroupContext", context))
+
+
+def findRealWorldConceptName(RF, realWorldConcept):
+    # Get the name of the real world concept
+    isCalled = RF.DirectDataAbstraction("isCalled", "atomic")
+    name = RF.searchRALJPattern([{"1" : [[realWorldConcept, isCalled, 0], "+"]}])[0]["1"]
+    return name

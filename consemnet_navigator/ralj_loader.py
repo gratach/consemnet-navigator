@@ -77,9 +77,9 @@ def loadRALJData(data, RALFramework):
             del relatingAbstractionsByJsonNodeID[jsonNodeID]
     return abstractionIDByJsonNodeID
 
-def saveRALJFile(file_path, RALFramework):
+def saveRALJFile(abstractions, file_path, RALFramework):
     with open(file_path, "w") as file:
-        data = saveRALJData(RALFramework)
+        data = saveRALJData(abstractions, RALFramework)
         json.dump(data, file)
 
 def saveRALJData(abstractions, RALFramework):

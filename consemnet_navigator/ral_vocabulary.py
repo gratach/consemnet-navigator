@@ -1,50 +1,68 @@
 
 
-def RalID(RALFramework, idString, baseConnections = set()):
+def RalID(context, idString, baseConnections = set()):
     """
     Get the constructed abstraction of an identified concept
     """
-    identifiedBy = RALFramework.DirectDataAbstraction("identifiedBy", "atomic")
-    ralidString = RALFramework.DirectDataAbstraction("ralid", idString)
+    RALFramework = context.get("RALFramework")
+    identifiedBy = loadContextConcept(context, "identifiedBy", lambda : RALFramework.DirectDataAbstraction("identifiedBy", "atomic"))
+    ralidString = loadContextConcept(context, "ralid_" +  idString, lambda: RALFramework.DirectDataAbstraction(idString, "ralid"))
+    if len(baseConnections) == 0:
+        return loadContextConcept(context, "identified_" + idString, lambda: RALFramework.ConstructedAbstraction({(0, identifiedBy, ralidString)}))
     return RALFramework.ConstructedAbstraction({(0, identifiedBy, ralidString)}|baseConnections)
 
-def RalText(RALFramework, text):
+def RalText(context, text):
     """
     Get the constructed abstraction of a text
     """
+    RALFramework = context.get("RALFramework")
     return RALFramework.DirectDataAbstraction(text, "text")
 
-def RalLanguage(RALFramework, languageIdString):
+def RalLanguage(context, languageIdString):
     """
     Get the constructed abstraction of a language
     """
-    isInstanceOf = RalID( RALFramework, "isInstanceOf")
-    languageID = RalID(RALFramework, "language")
-    return RalID(RALFramework, languageIdString, {(0, isInstanceOf, languageID)})
+    RALFramework = context.get("RALFramework")
+    isInstanceOf = RalID(context, "isInstanceOf")
+    languageID = RalID(context, "language")
+    return loadContextConcept(context, "language_" + languageIdString, lambda: RalID(context, languageIdString, {(0, isInstanceOf, languageID)}))
 
-def RalTerm(RALFramework, termString, language = None):
+def RalTerm(context, termString, language = None):
     """
     Get the constructed abstraction of a term
     """
-    isTermOfLanguage = RalID(RALFramework, "isTermOfLanguage")
-    hasTextContent = RalID(RALFramework, "hasTextContent")
+    RALFramework = context.get("RALFramework")
+    isTermOfLanguage = RalID(context, "isTermOfLanguage")
+    hasTextContent = RalID(context, "hasTextContent")
     if language == None:
-        language = RalLanguage(RALFramework, "lang.english")
-    return RALFramework.ConstructedAbstraction({(0, isTermOfLanguage, language), (0, hasTextContent, RalText(RALFramework, termString))})
+        language = RalLanguage(context, "lang.english")
+    return RALFramework.ConstructedAbstraction({(0, isTermOfLanguage, language), (0, hasTextContent, RalText(context, termString))})
 
-def RealWorldConcept(RALFramework, baseConnections = set(), name = [], connectionName = [], inverseConnectionName = [], language = None):
+def RealWorldConcept(context, baseConnections = set(), name = [], connectionName = [], inverseConnectionName = [], language = None):
     """
     Get the constructed abstraction of a term concept
     """
+    RALFramework = context.get("RALFramework")
     names = name if type(name) in [list, set, tuple] else [name]
-    names = {name if RALFramework.isValidAbstraction(name) else RalTerm(RALFramework, name, language) for name in names}
+    names = {name if RALFramework.isValidAbstraction(name) else RalTerm(context, name, language) for name in names}
     relationNames = connectionName if type(connectionName) in [list, set, tuple] else [connectionName]
-    relationNames = {relationName if RALFramework.isValidAbstraction(relationName) else RalTerm(RALFramework, relationName, language) for relationName in relationNames}
+    relationNames = {relationName if RALFramework.isValidAbstraction(relationName) else RalTerm(context, relationName, language) for relationName in relationNames}
     inverseRelationNames = inverseConnectionName if type(inverseConnectionName) in [list, set, tuple] else [inverseConnectionName]
-    inverseRelationNames = {inverseRelationName if RALFramework.isValidAbstraction(inverseRelationName) else RalTerm(RALFramework, inverseRelationName, language) for inverseRelationName in inverseRelationNames}
-    isInstanceOf = RalID(RALFramework, "isInstanceOf")
-    realWorldConcept = RalID(RALFramework, "realWorldConcept")
-    isCalled = RalID(RALFramework, "isCalled")
-    relationIsCalled = RalID(RALFramework, "relationIsCalled")
-    inverseRelationIsCalled = RalID(RALFramework, "inverseRelationIsCalled")
+    inverseRelationNames = {inverseRelationName if RALFramework.isValidAbstraction(inverseRelationName) else RalTerm(context, inverseRelationName, language) for inverseRelationName in inverseRelationNames}
+    isInstanceOf = RalID(context, "isInstanceOf")
+    realWorldConcept = RalID(context, "realWorldConcept")
+    isCalled = RalID(context, "isCalled")
+    relationIsCalled = RalID(context, "relationIsCalled")
+    inverseRelationIsCalled = RalID(context, "inverseRelationIsCalled")
     return RALFramework.ConstructedAbstraction({(0, isInstanceOf, realWorldConcept)}|{(0, isCalled, name) for name in names}|{(0, relationIsCalled, relationName) for relationName in relationNames}|{(0, inverseRelationIsCalled, inverseRelationName) for inverseRelationName in inverseRelationNames}|baseConnections)
+
+def loadContextConcept(context, conceptName, conceptCreationFunction):
+    """
+    Load a concept from the context if it exists, otherwise create it
+    """
+    concepts = context["concepts"] = context.get("concepts", {})
+    if conceptName in concepts:
+        return concepts[conceptName]
+    concept = conceptCreationFunction()
+    concepts[conceptName] = concept
+    return concept
