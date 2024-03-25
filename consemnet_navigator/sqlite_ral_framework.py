@@ -91,13 +91,70 @@ class SQLiteRALFramework:
                 baseConnections = baseConnections[:-1]
                 exactNumberOfBaseConnections = False
             for i in range(len(baseConnections)):
-                searchModules.append(ConstructedSearchModule(constructedParam, baseConnections, i, exactNumberOfBaseConnections))
+                searchModules.append(ConstructedSearchModule(constructedParam, baseConnections, i, exactNumberOfBaseConnections, self))
         for subj, pred, obj in tripleBlock:
             searchModules.append(TripleSearchModule(subj, pred, obj, self))
         # Search for all possible parameter combinations
         for knownParameters in searchAllSearchModules(searchModules, knownParameters):
             # Replace all id parameters with the corresponding abstractions
             yield {key : (self._getAbstractionWrapperFromID(value) if type(value) == int else value) for key, value in knownParameters.items()}
+
+class ConstructedSearchModule:
+    def __init__(self, param, baseConnections, connectionIndex, exactNumberOfBaseConnections, framework):
+        self.framework = framework
+        self.param = param
+        self.baseConnections = baseConnections
+        self.connectionIndex = connectionIndex
+        self.exactNumberOfBaseConnections = exactNumberOfBaseConnections
+        self.subj = baseConnections[connectionIndex][0]
+        self.pred = baseConnections[connectionIndex][1]
+        self.obj = baseConnections[connectionIndex][2]
+        self.subj = self.subj if type(self.subj) != 0 else param
+        self.pred = self.pred if type(self.pred) != 0 else param
+        self.obj = self.obj if type(self.obj) != 0 else param
+        self.parameterNames = {param} if type(param) == str else {} | {self.subj} if type(self.subj) == str else set() | {self.pred} if type(self.pred) == str else set() | {self.obj} if type(self.obj) == str else set()
+    def search(self, knownParameters):
+        subjValue = self.subj.id if type(self.subj) == SQLiteAbstraction else knownParameters.get(self.subj, None)
+        predValue = self.pred.id if type(self.pred) == SQLiteAbstraction else knownParameters.get(self.pred, None)
+        objValue = self.obj.id if type(self.obj) == SQLiteAbstraction else knownParameters.get(self.obj, None)
+        ownerValue = self.param.id if type(self.param) == SQLiteAbstraction else knownParameters.get(self.param, None)
+        self.framework._cur.execute("SELECT subject, predicate, object, owner FROM triples WHERE " +
+                                    " AND ".join([
+                                        *(["subject = ?"] if subjValue != None else []), 
+                                        *(["predicate = ?"] if predValue != None else []), 
+                                        *(["object = ?"] if objValue != None else []), 
+                                        *(["owner = ?"] if ownerValue != None else [])]),
+                                    tuple([
+                                        *([subjValue] if subjValue != None else []), 
+                                        *([predValue] if predValue != None else []), 
+                                        *([objValue] if objValue != None else []), 
+                                        *([ownerValue] if ownerValue != None else [])]))
+        matchingTriples = self.framework._cur.fetchall()
+        if len(matchingTriples) == 0:
+            return
+        # Create the set of already matched triples
+        alreadyMatchedTriples = set()
+        for i, matchingTriple in enumerate(self.baseConnections):
+            if i != self.connectionIndex:
+                subjValue = matchingTriple[0].id if type(matchingTriple[0]) == SQLiteAbstraction else knownParameters.get(matchingTriple[0], None)
+                predValue = matchingTriple[1].id if type(matchingTriple[1]) == SQLiteAbstraction else knownParameters.get(matchingTriple[1], None)
+                objValue = matchingTriple[2].id if type(matchingTriple[2]) == SQLiteAbstraction else knownParameters.get(matchingTriple[2], None)
+                if not None in [subjValue, predValue, objValue]:
+                    alreadyMatchedTriples.add((subjValue, predValue, objValue))
+        # Iterate through the matching triples
+        for matchingTriple in matchingTriples:
+            # If the owner got a new value, check if there is an exact number of base connections
+            if ownerValue == None and self.exactNumberOfBaseConnections:
+                self.framework._cur.execute("SELECT COUNT(*) FROM triples WHERE owner = ?", (matchingTriple[3],))
+                if self.framework._cur.fetchone()[0] != len(self.baseConnections):
+                    continue
+            # Check if the triple is already matched
+            if (matchingTriple[0], matchingTriple[1], matchingTriple[2]) in alreadyMatchedTriples:
+                continue
+            yield {**({self.subj : matchingTriple[0]} if type(self.subj) == str else {}),
+                   **({self.pred : matchingTriple[1]} if type(self.pred) == str else {}),
+                   **({self.obj : matchingTriple[2]} if type(self.obj) == str else {}),
+                   **({self.param : matchingTriple[3]} if type(self.param) == str else {})}
 
 class TripleSearchModule:
     def __init__(self, subj, pred, obj, framework):
