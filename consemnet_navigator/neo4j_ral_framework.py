@@ -7,7 +7,7 @@
 
 from weakref import WeakValueDictionary
 
-class neo4jRALFramework:
+class Neo4jRALFramework:
     def __init__(self, neo4j_session):
         self._neo4j_session = neo4j_session
         self._wrappersByAbstractionID = WeakValueDictionary()

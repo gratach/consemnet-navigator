@@ -1,3 +1,5 @@
 .venv/
 output/
 *.pyc
+*.ralj
+*.sqlite
