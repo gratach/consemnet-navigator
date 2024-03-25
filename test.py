@@ -17,9 +17,11 @@ print(dda1.data)
 print(dda1.format)
 print(dda1.type)
 ca1 = SRF.ConstructedAbstraction({(0, dda1, 0), (0, dda2, 0)})
-ca2 = SRF.ConstructedAbstraction({(0, dda1, ca1), (0, dda2, 0)})
+ca2 = SRF.ConstructedAbstraction({(dda1, 0, ca1), (0, dda2, 0)})
 print(ca1.connections)
 print(ca1.type)
+search = [*SRF.searchRALJPattern(triples = [["1", dda2, "1"], [dda1, "2", "1"]])]
+print(search)
 if False:
     with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
         session = driver.session(database=DATABASE)
