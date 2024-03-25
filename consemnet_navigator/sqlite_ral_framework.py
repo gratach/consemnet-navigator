@@ -4,8 +4,8 @@ from weakref import WeakValueDictionary
 class SQLiteRALFramework:
     def __init__(self, db_path: str):
         self._db_path = db_path
-        self.conn = sqlite3.connect(db_path)
-        self._cur = self.conn.cursor()
+        self._conn = sqlite3.connect(db_path)
+        self._cur = self._conn.cursor()
         self._cur.execute("CREATE TABLE IF NOT EXISTS abstractions (id INTEGER PRIMARY KEY, data TEXT, format TEXT, connections TEXT, tripleIds TEXT, remember INTEGER)")
         self._cur.execute("CREATE TABLE IF NOT EXISTS triples (id INTEGER PRIMARY KEY, subject INTEGER, predicate INTEGER, object INTEGER, owner INTEGER)")
         self._wrappersByAbstractionID = WeakValueDictionary()
@@ -51,7 +51,7 @@ class SQLiteRALFramework:
             tripleIds.append(self._cur.lastrowid)
         tripleIdRepresentationString = ",".join([str(tripleId) for tripleId in tripleIds])
         self._cur.execute("UPDATE abstractions SET tripleIds = ? WHERE id = ?", (tripleIdRepresentationString, result.id))
-        self.conn.commit()
+        self._conn.commit()
     def DirectDataAbstraction(self, datastring, formatstring):
         # Check if the abstraction already exists
         self._cur.execute("SELECT id FROM abstractions WHERE data = ? AND format = ?", (datastring, formatstring))
@@ -60,7 +60,7 @@ class SQLiteRALFramework:
             return self._getAbstractionWrapperFromID(res[0])
         # Create the abstraction
         self._cur.execute("INSERT INTO abstractions (data, format, connections, remember) VALUES (?, ?, ?, ?)", (datastring, formatstring, None, 0))
-        self.conn.commit()
+        self._conn.commit()
         return self._getAbstractionWrapperFromID(self._cur.lastrowid)
     def _getAbstractionWrapperFromID(self, id):
         if id in self._wrappersByAbstractionID:
@@ -72,9 +72,81 @@ class SQLiteRALFramework:
 class SQLiteAbstraction:
     def __init__(self, abstractionId, framework):
         self._id = abstractionId
-        self._framework = framework
+        self.RALFramework = framework
     @property
     def id(self):
         if self._id == None:
             raise ValueError("The abstraction has been deleted.")
         return self._id
+    @property
+    def data(self):
+        self.RALFramework._cur.execute("SELECT data FROM abstractions WHERE id = ?", (self.id,))
+        return self.RALFramework._cur.fetchone()[0]
+    @property
+    def format(self):
+        self.RALFramework._cur.execute("SELECT format FROM abstractions WHERE id = ?", (self.id,))
+        return self.RALFramework._cur.fetchone()[0]
+    @property
+    def connections(self):
+        self.RALFramework._cur.execute("SELECT connections FROM abstractions WHERE id = ?", (self.id,))
+        triples = self.RALFramework._cur.fetchone()[0].split("|")
+        triples = [tuple([0 if element == "-" else self.RALFramework._getAbstractionWrapperFromID(int(element)) for element in triple.split(",")]) for triple in triples]
+        return frozenset(triples)
+    @property
+    def remembered(self):
+        self.RALFramework._cur.execute("SELECT remember FROM abstractions WHERE id = ?", (self.id,))
+        return self.RALFramework._cur.fetchone()[0] != 0
+    @property
+    def type(self):
+        self.RALFramework._cur.execute("SELECT data FROM abstractions WHERE id = ?", (self.id,))
+        return "DirectDataAbstraction" if self.RALFramework._cur.fetchone()[0] != None else "ConstructedAbstraction"
+    def __repr__(self):
+        if self._id == None:
+            return f"Abstraction(deleted)"
+        return f"Abstraction({self.id})"
+    def __del__(self):
+        self._safeDelete()
+    def _safeDelete(self):
+        if self._id == None:
+            return
+        id = self.id
+        self._id = None
+        # Check if the abstraction can be savely deleted from the sqlite database
+        idsToCheckForDeletion = set([id])
+        while len(idsToCheckForDeletion) > 0:
+            id = idsToCheckForDeletion.pop()
+            idsToCheckForDeletion |= checkForSafeAbstractionDeletion(id, self.RALFramework)
+
+def checkForSafeAbstractionDeletion(id, RALFramework):
+    """
+    Checks if the abstraction with the given id can be savely deleted from the sqlite database.
+    Returns a set of the abstraction ids that should also be checked for safe deletion.
+    """
+    # Check if the abstraction is remembered
+    if RALFramework._cur.execute("SELECT remember FROM abstractions WHERE id = ?", (id,)).fetchone()[0] != 0:
+        return set()
+    # Check if tere is a active wrapper for the abstraction
+    wrapper = RALFramework._wrappersByAbstractionID.get(id)
+    if wrapper != None and wrapper._id != None:
+        return set()
+    # Get all the connected Triples
+    triples = RALFramework._cur.execute("SELECT id, subject, predicate, object, owner FROM triples WHERE subject = ? OR predicate = ? OR object = ?", (id, id, id)).fetchall()
+    # Check if all triples are owned by the abstraction
+    for triple in triples:
+        if triple[4] != id:
+            return set()
+    # Collect all connected abstractions
+    connectedAbstractions = set()
+    for triple in triples:
+        for element in triple[1:4]:
+            if element != id:
+                connectedAbstractions.add(element)
+    # Delete the triples
+    for triple in triples:
+        RALFramework._cur.execute("DELETE FROM triples WHERE id = ?", (triple[0],))
+    # Delete the abstraction
+    RALFramework._cur.execute("DELETE FROM abstractions WHERE id = ?", (id,))
+    RALFramework._conn.commit()
+    # Return the connected abstractions
+    return connectedAbstractions
+    
