@@ -210,21 +210,21 @@ def runDisplayRealWorldConceptEnvironment(context):
                                                       ("connection", relationIsCalled, "connectionTerm"), ("connectionTerm", hasTextContent, "connectionName"),
                                                       ("connectedAbstraction", isCalled, "connectedAbstractionTerm"), ("connectedAbstractionTerm", hasTextContent, "connectedAbstractionName")])
         for connection in connections:
-            connectionName = RF.getAbstractionContent(connection["connectionName"])[0]
+            connectionName = connection["connectionName"].data
             if not connectionName in connectionByConnectionName:
                 connectionByConnectionName[connectionName] = [None, None, {}]
             connectionByConnectionName[connectionName][0] = connection["connection"]
-            connectionByConnectionName[connectionName][2][RF.getAbstractionContent(connection["connectedAbstractionName"])[0]] = connection["connectedAbstraction"]
+            connectionByConnectionName[connectionName][2][connection["connectedAbstractionName"].data] = connection["connectedAbstraction"]
         inverseConnections = RF.searchRALJPattern(triples = [("connectedAbstraction", "inverseConnection", abstraction), 
                                                            ("inverseConnection", isInstanceOf, realWorldConcept), ("connectedAbstraction", isInstanceOf, realWorldConcept),
                                                            ("inverseConnection", inverseRelationIsCalled, "connectionTerm"), ("connectionTerm", hasTextContent, "connectionName"),
                                                            ("connectedAbstraction", isCalled, "connectedAbstractionTerm"), ("connectedAbstractionTerm", hasTextContent, "connectedAbstractionName")])
         for connection in inverseConnections:
-            connectionName = RF.getAbstractionContent(connection["connectionName"])[0]
+            connectionName = connection["connectionName"].data
             if not connectionName in connectionByConnectionName:
                 connectionByConnectionName[connectionName] = [None, None, {}]
             connectionByConnectionName[connectionName][1] = connection["inverseConnection"]
-            connectionByConnectionName[connectionName][2][RF.getAbstractionContent(connection["connectedAbstractionName"])[0]] = connection["connectedAbstraction"]
+            connectionByConnectionName[connectionName][2][connection["connectedAbstractionName"].data] = connection["connectedAbstraction"]
     # Sort the connections by connection name
     connectionNames = list(connectionByConnectionName.keys())
     connectionNames.sort(key = lambda x: (x[1].upper(), x[1]))

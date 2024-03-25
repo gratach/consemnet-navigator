@@ -98,6 +98,16 @@ class SQLiteRALFramework:
         for knownParameters in searchAllSearchModules(searchModules, knownParameters):
             # Replace all id parameters with the corresponding abstractions
             yield {key : (self._getAbstractionWrapperFromID(value) if type(value) == int else value) for key, value in knownParameters.items()}
+    def getStringRepresentationFromAbstraction(self, abstraction):
+        if type(abstraction) != SQLiteAbstraction:
+            raise ValueError("The abstraction must be a SQLiteAbstraction.")
+        return str(abstraction.id)
+    def getAbstractionFromStringRepresentation(self, stringRepresentation):
+        self._cur.execute("SELECT id FROM abstractions WHERE id = ?", (int(stringRepresentation),))
+        res = self._cur.fetchone()
+        if res == None:
+            raise ValueError("The abstraction with the given id does not exist.")
+        return self._getAbstractionWrapperFromID(res[0])
 
 class ConstructedSearchModule:
     def __init__(self, param, baseConnections, connectionIndex, exactNumberOfBaseConnections, framework):

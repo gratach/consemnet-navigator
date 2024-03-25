@@ -62,15 +62,15 @@ def findConceptName(context, concept):
     """
     RALFramework = context.get("RALFramework")
     isCalled = RalID(context, "isCalled")
-    res = RALFramework.searchRALJPattern(constructed = {concept : [[0, isCalled, "1"], "+"]})
+    res = [*RALFramework.searchRALJPattern(constructed = {concept : [[0, isCalled, "1"], "+"]})]
     if len(res) == 0:
         return None
     term = res[0]["1"]
     hasTextContent = RalID(context, "hasTextContent")
-    res = RALFramework.searchRALJPattern(constructed = {term : [[0, hasTextContent, "1"], "+"]})
+    res = [*RALFramework.searchRALJPattern(constructed = {term : [[0, hasTextContent, "1"], "+"]})]
     if len(res) == 0:
         return None
-    return RALFramework.getAbstractionContent(res[0]["1"])[0]
+    return res[0]["1"].data
 
 def findConceptsName(context, concepts):
     """
