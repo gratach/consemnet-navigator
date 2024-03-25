@@ -177,6 +177,7 @@ def trySearchRALJPattern(textinput, context):
 
 def runDisplayRealWorldConceptEnvironment(context):
     print()
+    RF = context.get("RALFramework")
     # Check if there is a current abstraction
     currentAbstraction = context.get("currentAbstraction")
     if currentAbstraction == None:
@@ -191,10 +192,56 @@ def runDisplayRealWorldConceptEnvironment(context):
         context["getAbstractionGroup"] = getAbstractionGroup
     # Get the abstraction group
     abstractionGroup = getAbstractionGroup(currentAbstraction, context.get("getAbstractionGroupContext", context))
+    # Get the name of the abstraction group
+    abstractionGroupName = findConceptsName(context.get("getAbstractionNameContext", context), abstractionGroup)
+    context["currentAbstractionTerm"] = abstractionGroupName
+    print(abstractionGroupName + " " + RF.getStringRepresentationFromAbstraction(currentAbstraction))
+    # Get the base connections of the current abstraction
+    connectionByConnectionName = {} # {connectionName : [connection, inverseConnection, {connectedAbstractionName : connectedAbstraction}]}
+    isInstanceOf = RalID(context, "isInstanceOf")
+    realWorldConcept = RalID(context, "realWorldConcept")
+    isCalled = RalID(context, "isCalled")
+    relationIsCalled = RalID(context, "relationIsCalled")
+    inverseRelationIsCalled = RalID(context, "inverseRelationIsCalled")
+    hasTextContent = RalID(context, "hasTextContent")
+    for abstraction in abstractionGroup:
+        connections = RF.searchRALJPattern(triples = [(abstraction, "connection", "connectedAbstraction"), 
+                                                      ("connection", isInstanceOf, realWorldConcept), ("connectedAbstraction", isInstanceOf, realWorldConcept),
+                                                      ("connection", relationIsCalled, "connectionTerm"), ("connectionTerm", hasTextContent, "connectionName"),
+                                                      ("connectedAbstraction", isCalled, "connectedAbstractionTerm"), ("connectedAbstractionTerm", hasTextContent, "connectedAbstractionName")])
+        for connection in connections:
+            connectionName = RF.getAbstractionContent(connection["connectionName"])[0]
+            if not connectionName in connectionByConnectionName:
+                connectionByConnectionName[connectionName] = [None, None, {}]
+            connectionByConnectionName[connectionName][0] = connection["connection"]
+            connectionByConnectionName[connectionName][2][RF.getAbstractionContent(connection["connectedAbstractionName"])[0]] = connection["connectedAbstraction"]
+        inverseConnections = RF.searchRALJPattern(triples = [("connectedAbstraction", "inverseConnection", abstraction), 
+                                                           ("inverseConnection", isInstanceOf, realWorldConcept), ("connectedAbstraction", isInstanceOf, realWorldConcept),
+                                                           ("inverseConnection", inverseRelationIsCalled, "connectionTerm"), ("connectionTerm", hasTextContent, "connectionName"),
+                                                           ("connectedAbstraction", isCalled, "connectedAbstractionTerm"), ("connectedAbstractionTerm", hasTextContent, "connectedAbstractionName")])
+        for connection in inverseConnections:
+            connectionName = RF.getAbstractionContent(connection["connectionName"])[0]
+            if not connectionName in connectionByConnectionName:
+                connectionByConnectionName[connectionName] = [None, None, {}]
+            connectionByConnectionName[connectionName][1] = connection["inverseConnection"]
+            connectionByConnectionName[connectionName][2][RF.getAbstractionContent(connection["connectedAbstractionName"])[0]] = connection["connectedAbstraction"]
+    # Sort the connections by connection name
+    connectionNames = list(connectionByConnectionName.keys())
+    connectionNames.sort(key = lambda x: (x[1].upper(), x[1]))
+    # Print the connections
+    for connectionName in connectionNames:
+        connection, inverseConnection, connectedAbstractions = connectionByConnectionName[connectionName]
+        print(connectionName + " -" + (" " + RF.getStringRepresentationFromAbstraction(connection) if connection != None else "") + (" inv(" + RF.getStringRepresentationFromAbstraction(inverseConnection) + ")" if inverseConnection != None else ""))
+        # Sort the connected abstractions by connected abstraction name
+        connectedAbstractionNames = list(connectedAbstractions.keys())
+        connectedAbstractionNames.sort(key = lambda x: (x[1].upper(), x[1]))
+        # Print the connected abstractions
+        for connectedAbstractionName in connectedAbstractionNames:
+            print("    " + connectedAbstractionName + " - " + RF.getStringRepresentationFromAbstraction(connectedAbstractions[connectedAbstractionName]))
 
-
-def findRealWorldConceptName(RF, realWorldConcept):
-    # Get the name of the real world concept
-    isCalled = RF.DirectDataAbstraction("isCalled", "atomic")
-    name = RF.searchRALJPattern([{"1" : [[realWorldConcept, isCalled, 0], "+"]}])[0]["1"]
-    return name
+def runGetAbstractionGroup(abstraction, context):
+    RF = context.get("RALFramework")
+    # Get all abstract concepts, that are called by the same term
+    isCalled = RalID(context, "isCalled")
+    search = RF.searchRALJPattern(triples = [(abstraction, isCalled, "term"), ("connectedAbstraction", isCalled, "term")])
+    return set([x["connectedAbstraction"] for x in search]) | {abstraction}

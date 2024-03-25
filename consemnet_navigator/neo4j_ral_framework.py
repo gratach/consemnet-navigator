@@ -39,8 +39,8 @@ class neo4jRALFramework:
             return getInverseDirectAbstractionContent(abstraction, self)
         else:
             raise ValueError("The abstraction type is not valid.")
-    def searchRALJPattern(self, pattern = [], directDataAbstractions = None, constructedAbstractions = None, directAbstractions = None, inverseDirectAbstractions = None, abstractionTriples = None):
-        return searchRALJPattern(pattern, self, directDataAbstractions, constructedAbstractions, directAbstractions, inverseDirectAbstractions, abstractionTriples)
+    def searchRALJPattern(self, pattern = [], data = None, constructed = None, directAbstractions = None, inverseDirectAbstractions = None, triples = None):
+        return searchRALJPattern(pattern, self, data, constructed, directAbstractions, inverseDirectAbstractions, triples)
     def listAllAbstractions(self):
         return listAllAbstractions(self)
     def getStringRepresentationFromAbstraction(self, abstracrion):
@@ -369,23 +369,24 @@ def getInverseDirectAbstractionContent(abstraction, framework):
     neo4j_session = framework._neo4j_session
     return framework._getAbstractionIdWrapper(neo4j_session.run("MATCH (n)-[:isInverseAbstractionOf]->(m) WHERE id(n) = $id RETURN id(m)", id=abstraction.id).single().value())
 
-def searchRALJPattern(pattern, framework, directDataAbstractions = None, constructedAbstractions = None, directAbstractions = None, inverseDirectAbstractions = None, abstractionTriples = None):
+def searchRALJPattern(pattern, framework, data = None, constructed = None, directAbstractions = None, inverseDirectAbstractions = None, triples = None):
     """
-    Searches for appearances of the given pattern in the neo4j database and returns a list of dictionaries that map the ids of the ralj pattern to the neo4j ids of the appearances.
-    The pattern can also contain neo4j ids which are maked by enclosing them in square brackets.
+    Searches for appearances of the given pattern in the neo4j database and returns a list of dictionaries that map the ids of the ralj pattern to the corresponding neo4j abstractions.
+    The data block represented by the data keyword argument consists of a dictionary that maps the ids of the data concepts to a tuple of the data and the format of the data concept.
+    When searching for direct data concepts with unknown data or format, the data or format can be set to a list containing only the id of the unknown data or format.
+    The constructed block represented by the constructed keyword argument consists of a dictionary that maps the ids of the constructed concepts to a list of triples that represent the connections of the constructed concept.
     When searching for constructed concepts that can have more than the listed connections, a "+" has to be added at the end of the connection list.
-    When searching for direct data concepts with unknown data or format, the data or format can be set to 0.
     """
     # Load the neo4j session
     neo4j_session = framework._neo4j_session
     # Load the blocks of the pattern
     assert type(pattern) == list and len(pattern) < 6
     dataConceptBlock = pattern[0] if len(pattern) > 0 else {}
-    if directDataAbstractions != None:
-        dataConceptBlock.update(directDataAbstractions)
+    if data != None:
+        dataConceptBlock.update(data)
     constructedConceptBlock = pattern[1] if len(pattern) > 1 else {}
-    if constructedAbstractions != None:
-        constructedConceptBlock.update(constructedAbstractions)
+    if constructed != None:
+        constructedConceptBlock.update(constructed)
     directAbstractionBlock = pattern[2] if len(pattern) > 2 else {}
     if directAbstractions != None:
         directAbstractionBlock.update(directAbstractions)
@@ -393,24 +394,23 @@ def searchRALJPattern(pattern, framework, directDataAbstractions = None, constru
     if inverseDirectAbstractions != None:
         inverseDirectAbstractionBlock.update(inverseDirectAbstractions)
     abstractionTriplesBlock = pattern[4] if len(pattern) > 4 else []
-    if abstractionTriples != None:
-        abstractionTriplesBlock.extend(abstractionTriples)
+    if triples != None:
+        abstractionTriplesBlock.extend(triples)
     structureStringArray = []
     globalIDs = set()
     localIDs = set()
     # Evaluate the dataConceptBlock
-    for format, datalist in dataConceptBlock.items():
-        for data, ref in datalist.items():
-            dataAndFormat = ", ".join([*([] if type(data) == list else[f"data: '{data}'"]), *([] if type(format) == list else[f"format: '{format}'"])])
-            if type(ref) == str:
-                refName = "local" + ref.encode("utf-8").hex()
-                localIDs.add(ref)
-            elif type(ref) == Neo4jAbstraction:
-                refName = "global" + str(ref.id)
-                globalIDs.add(ref.id)
-            else:
-                raise ValueError("The id of a data concept must be an int or a list with one int.")
-            structureStringArray.append(f"({refName}:DirectDataAbstraction {{{dataAndFormat}}})")
+    for ref, (data, format) in dataConceptBlock.items():
+        dataAndFormat = ", ".join([*([] if type(data) == list else[f"data: '{data}'"]), *([] if type(format) == list else[f"format: '{format}'"])])
+        if type(ref) == str:
+            refName = "local" + ref.encode("utf-8").hex()
+            localIDs.add(ref)
+        elif type(ref) == Neo4jAbstraction:
+            refName = "global" + str(ref.id)
+            globalIDs.add(ref.id)
+        else:
+            raise ValueError("The id of a data concept must be an int or a list with one int.")
+        structureStringArray.append(f"({refName}:DirectDataAbstraction {{{dataAndFormat}}})")
     # Evaluate the constructedConceptBlock
     tripelIndex = 0
     for ref, connections in constructedConceptBlock.items():

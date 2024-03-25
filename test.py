@@ -15,23 +15,15 @@ with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
     RF = neo4jRALFramework(session)
     context = {"RALFramework": RF}
 
-    physics = RealWorldConcept(context, name="Physics")
     hasSubtopic = RealWorldConcept(context, connectionName="has specified subtopic", inverseConnectionName="is specified subtopic of")
-    particlePhysics = RealWorldConcept(context, name="Particle Physics", baseConnections={(physics, hasSubtopic, 0)})
+    physics = RealWorldConcept(context, name="Physics")
+    particlePhysicsSubtopicOfPhysics = RealWorldConcept(context, name="Particle Physics", baseConnections={(physics, hasSubtopic, 0)})
+    science = RealWorldConcept(context, name="Science")
+    physicsSubtopicOfScience = RealWorldConcept(context, name="Physics", baseConnections={(science, hasSubtopic, 0)})
 
-    input("Press enter to continue...")
+    context["currentAbstraction"] = physics
+    context["displayEnvironment"] = runDisplayRealWorldConceptEnvironment
 
-    randomConcepts = []
-
-    for i in range(100):
-        randomConcepts.append(RealWorldConcept(context, name="Random Concept " + str(i)))
-
-    input("Press enter to continue...")
-
-    #runNavigator(context)
-
-    saveRALJFile([*randomConcepts, physics, particlePhysics], outputpath, RF)
-
-    input("Press enter to continue...")
+    runNavigator(context)
 
     RF.close()

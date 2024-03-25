@@ -56,6 +56,31 @@ def RealWorldConcept(context, baseConnections = set(), name = [], connectionName
     inverseRelationIsCalled = RalID(context, "inverseRelationIsCalled")
     return RALFramework.ConstructedAbstraction({(0, isInstanceOf, realWorldConcept)}|{(0, isCalled, name) for name in names}|{(0, relationIsCalled, relationName) for relationName in relationNames}|{(0, inverseRelationIsCalled, inverseRelationName) for inverseRelationName in inverseRelationNames}|baseConnections)
 
+def findConceptName(context, concept):
+    """
+    Get the name of a concept
+    """
+    RALFramework = context.get("RALFramework")
+    isCalled = RalID(context, "isCalled")
+    res = RALFramework.searchRALJPattern(constructed = {concept : [[0, isCalled, "1"], "+"]})
+    if len(res) == 0:
+        return None
+    term = res[0]["1"]
+    hasTextContent = RalID(context, "hasTextContent")
+    res = RALFramework.searchRALJPattern(constructed = {term : [[0, hasTextContent, "1"], "+"]})
+    if len(res) == 0:
+        return None
+    return RALFramework.getAbstractionContent(res[0]["1"])[0]
+
+def findConceptsName(context, concepts):
+    """
+    Get the first valid name of a set of concepts
+    """
+    for concept in concepts:
+        name = findConceptName(context, concept)
+        if name != None:
+            return name
+
 def loadContextConcept(context, conceptName, conceptCreationFunction):
     """
     Load a concept from the context if it exists, otherwise create it
