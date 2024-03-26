@@ -152,7 +152,7 @@ class ConstructedSearchModule:
         self.subj = self.subj if type(self.subj) != 0 else param
         self.pred = self.pred if type(self.pred) != 0 else param
         self.obj = self.obj if type(self.obj) != 0 else param
-        self.parameterNames = ({param} if type(param) == str else {}) | ({self.subj} if type(self.subj) == str else set()) | ({self.pred} if type(self.pred) == str else set()) | ({self.obj} if type(self.obj) == str else set())
+        self.parameterNames = ({param} if type(param) == str else set()) | ({self.subj} if type(self.subj) == str else set()) | ({self.pred} if type(self.pred) == str else set()) | ({self.obj} if type(self.obj) == str else set())
     def getUndefinednessIndex(self, knownParameters):
         return len([parameter for parameter in self.parameterNames if parameter not in knownParameters])
     def search(self, knownParameters):
@@ -280,6 +280,10 @@ class SQLiteAbstraction:
     def remembered(self):
         self.RALFramework._cur.execute("SELECT remember FROM abstractions WHERE id = ?", (self.id,))
         return self.RALFramework._cur.fetchone()[0] != 0
+    @remembered.setter
+    def remembered(self, value):
+        self.RALFramework._cur.execute("UPDATE abstractions SET remember = ? WHERE id = ?", (1 if value else 0, self.id))
+        self.RALFramework._conn.commit()
     @property
     def type(self):
         self.RALFramework._cur.execute("SELECT data FROM abstractions WHERE id = ?", (self.id,))
@@ -300,6 +304,18 @@ class SQLiteAbstraction:
         while len(idsToCheckForDeletion) > 0:
             id = idsToCheckForDeletion.pop()
             idsToCheckForDeletion |= checkForSafeAbstractionDeletion(id, self.RALFramework)
+    def forceDeletion(self):
+        if self._id == None:
+            raise ValueError("The abstraction has been deleted.")
+        forcedDeletionIds = {self._id}
+        safeDeletionIds = set()
+        while len(forcedDeletionIds) > 0:
+            id = forcedDeletionIds.pop()
+            safeDeletionIds.add(id)
+            forcedDeletionIds |= forceAbstractionDeletion(id, self.RALFramework).difference(safeDeletionIds)
+        while len(safeDeletionIds) > 0:
+            id = safeDeletionIds.pop()
+            safeDeletionIds |= checkForSafeAbstractionDeletion(id, self.RALFramework)
 
 def checkForSafeAbstractionDeletion(id, RALFramework):
     """
@@ -333,4 +349,24 @@ def checkForSafeAbstractionDeletion(id, RALFramework):
     RALFramework._conn.commit()
     # Return the connected abstractions
     return connectedAbstractions
+
+def forceAbstractionDeletion(id, RALFramework):
+    """
+    Forces the deletion of the abstraction with the given id from the neo4j database.
+    returns the set of the abstraction ids that also have to be forced to be deleted.
+    """
+    # Unset the remembered flag
+    RALFramework._cur.execute("UPDATE abstractions SET remember = 0 WHERE id = ?", (id,))
+    # Deactivate the active wrapper for the abstraction if there is one
+    wrapper = RALFramework._wrappersByAbstractionID.get(id)
+    if wrapper != None:
+        wrapper._id = None
+    forcedDeletionIds = set()
+    # Get all the connected AbstractionTriples
+    connectedTriples = RALFramework._cur.execute("SELECT owner FROM triples WHERE subject = ? OR predicate = ? OR object = ?", (id, id, id)).fetchall()
+    # Add all the owners of the connected AbstractionTriples to the forcedDeletionIds
+    for connectedTriple in connectedTriples:
+        forcedDeletionIds.add(connectedTriple[0])
+    # Return the forcedDeletionIds
+    return forcedDeletionIds
     
