@@ -84,7 +84,7 @@ class SQLiteRALFramework:
             if type(data) == str and type(format) == str:
                 knownParameters[dataParam] = self.DirectDataAbstraction(data, format).id
             else:
-                searchModules.append(DataSearchModule(dataParam, data, format))
+                searchModules.append(DataSearchModule(dataParam, data, format, self))
         for constructedParam, baseConnections in constructedBlock.items():
             exactNumberOfBaseConnections = True
             if len(baseConnections) > 0 and baseConnections[-1] == "+":
@@ -108,6 +108,36 @@ class SQLiteRALFramework:
         if res == None:
             raise ValueError("The abstraction with the given id does not exist.")
         return self._getAbstractionWrapperFromID(res[0])
+    
+class DataSearchModule:
+    def __init__(self, param, data, format, framework):
+        self.framework = framework
+        self.param = param
+        self.data = data
+        self.format = format
+        self.parameterNames = ({param} if type(param) == str else set()) | ({data[0]} if type(data) == list else set()) | ({format[0]} if type(format) == list else set())
+    def getUndefinednessIndex(self, knownParameters):
+        return len([parameter for parameter in self.parameterNames if parameter not in knownParameters])
+    def search(self, knownParameters):
+        paramValue = self.param.id if type(self.param) == SQLiteAbstraction else knownParameters.get(self.param, None)
+        dataValue = self.data if type(self.data) == str else knownParameters.get(self.data[0], None)
+        formatValue = self.format if type(self.format) == str else knownParameters.get(self.format[0], None)
+        self.framework._cur.execute("SELECT id, data, format FROM abstractions" + (" WHERE " if (paramValue, dataValue, formatValue) != (None, None, None) else "") +
+                                    " AND ".join([
+                                        *(["id = ?"] if paramValue != None else []), 
+                                        *(["data = ?"] if dataValue != None else []), 
+                                        *(["format = ?"] if formatValue != None else [])]), 
+                                    tuple([
+                                        *([paramValue] if paramValue != None else []), 
+                                        *([dataValue] if dataValue != None else []), 
+                                        *([formatValue] if formatValue != None else [])]))
+        matchingAbstractions = self.framework._cur.fetchall()
+        for matchingAbstraction in matchingAbstractions:
+            if matchingAbstraction[1] == None or matchingAbstraction[2] == None:
+                continue
+            yield {**({self.param : matchingAbstraction[0]} if type(self.param) == str else {}),
+                   **({self.data[0] : matchingAbstraction[1]} if type(self.data) == list else {}),
+                   **({self.format[0] : matchingAbstraction[2]} if type(self.format) == list else {})}
 
 class ConstructedSearchModule:
     def __init__(self, param, baseConnections, connectionIndex, exactNumberOfBaseConnections, framework):
@@ -122,13 +152,15 @@ class ConstructedSearchModule:
         self.subj = self.subj if type(self.subj) != 0 else param
         self.pred = self.pred if type(self.pred) != 0 else param
         self.obj = self.obj if type(self.obj) != 0 else param
-        self.parameterNames = {param} if type(param) == str else {} | {self.subj} if type(self.subj) == str else set() | {self.pred} if type(self.pred) == str else set() | {self.obj} if type(self.obj) == str else set()
+        self.parameterNames = ({param} if type(param) == str else {}) | ({self.subj} if type(self.subj) == str else set()) | ({self.pred} if type(self.pred) == str else set()) | ({self.obj} if type(self.obj) == str else set())
+    def getUndefinednessIndex(self, knownParameters):
+        return len([parameter for parameter in self.parameterNames if parameter not in knownParameters])
     def search(self, knownParameters):
         subjValue = self.subj.id if type(self.subj) == SQLiteAbstraction else knownParameters.get(self.subj, None)
         predValue = self.pred.id if type(self.pred) == SQLiteAbstraction else knownParameters.get(self.pred, None)
         objValue = self.obj.id if type(self.obj) == SQLiteAbstraction else knownParameters.get(self.obj, None)
         ownerValue = self.param.id if type(self.param) == SQLiteAbstraction else knownParameters.get(self.param, None)
-        self.framework._cur.execute("SELECT subject, predicate, object, owner FROM triples WHERE " +
+        self.framework._cur.execute("SELECT subject, predicate, object, owner FROM triples" + (" WHERE " if (subjValue, predValue, objValue, ownerValue) != (None, None, None, None) else "") +
                                     " AND ".join([
                                         *(["subject = ?"] if subjValue != None else []), 
                                         *(["predicate = ?"] if predValue != None else []), 
@@ -172,12 +204,14 @@ class TripleSearchModule:
         self.pred = pred
         self.obj = obj
         self.framework = framework
-        self.parameterNames = {subj} if type(subj) == str else set() | {pred} if type(pred) == str else set() | {obj} if type(obj) == str else set()
+        self.parameterNames = ({subj} if type(subj) == str else set()) | ({pred} if type(pred) == str else set()) | ({obj} if type(obj) == str else set())
+    def getUndefinednessIndex(self, knownParameters):
+        return len([parameter for parameter in self.parameterNames if parameter not in knownParameters])
     def search(self, knownParameters):
         subjValue = self.subj.id if type(self.subj) == SQLiteAbstraction else knownParameters.get(self.subj, None)
         predValue = self.pred.id if type(self.pred) == SQLiteAbstraction else knownParameters.get(self.pred, None)
         objValue = self.obj.id if type(self.obj) == SQLiteAbstraction else knownParameters.get(self.obj, None)
-        self.framework._cur.execute("SELECT subject, predicate, object FROM triples WHERE " + 
+        self.framework._cur.execute("SELECT subject, predicate, object FROM triples" + (" WHERE " if (subjValue, predValue, objValue) != (None, None, None) else "") +
                                                         " AND ".join([
                                                             *(["subject = ?"] if subjValue != None else []), 
                                                             *(["predicate = ?"] if predValue != None else []), 
@@ -203,13 +237,12 @@ def searchAllSearchModules(searchModules, knownParameters):
         yield knownParameters
         return
     # Get the module with the smallest number of unknown parameters
-    smallestNumberOfUnknownParameters = 100000000000
+    smallestUndefinednessIndex = None
     moduleWithSmallestNumberOfUnknownParameters = None
     for searchModule in searchModules:
-        moduleParameters = searchModule.parameterNames
-        numberOfUnknownParameters = len([parameter for parameter in moduleParameters if parameter not in knownParameters])
-        if numberOfUnknownParameters < smallestNumberOfUnknownParameters:
-            smallestNumberOfUnknownParameters = numberOfUnknownParameters
+        undefinednessIndex = searchModule.getUndefinednessIndex(knownParameters)
+        if smallestUndefinednessIndex == None or undefinednessIndex < smallestUndefinednessIndex:
+            smallestUndefinednessIndex = undefinednessIndex
             moduleWithSmallestNumberOfUnknownParameters = searchModule
     # Iterate through all possible values for the unknown parameters of the module
     for parameterValues in moduleWithSmallestNumberOfUnknownParameters.search(knownParameters):
