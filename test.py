@@ -12,6 +12,7 @@ DATABASE = "consemnet"
 outputpath = "output.ralj"
 SRF = SQLiteRALFramework("database.sqlite")
 SRF2 = SQLiteRALFramework("database2.sqlite")
+SRF3 = SQLiteRALFramework("database3.sqlite")
 
 dda1 = SRF.DirectDataAbstraction("Physics", "text")
 dda2 = SRF.DirectDataAbstraction("Particle Physics", "text")
@@ -28,8 +29,10 @@ ca1.remembered = True
 #search = [*SRF.searchRALJPattern(constructed = {"2" : [[0, dda2, "1"], [dda1, "2", ca1]]})]
 search = [*SRF.searchRALJPattern(data = {"dataconcept1" : (["data"], ["text"])}, constructed = {"constructedconcept1" : [["dataconcept1", 0, "someconcept"], "+"]})]
 print(search)
-result  = transformAssertedClaimsIntoAbstractClaims({dda1, dda2, ca1, ca2}, SRF, SRF2)
-print(result)
+transformresult1  = transformAssertedClaimsIntoAbstractClaims({dda1, dda2, ca1, ca2}, SRF, SRF2)
+print(transformresult1)
+transformresult2  = transformAbstractClaimsIntoAssertedClaims(transformresult1, SRF2, SRF3)
+print(transformresult2)
 """
 #with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
 #session = driver.session(database=DATABASE)

@@ -140,4 +140,41 @@ def transformAbstractClaimsIntoAssertedClaims(abstractClaims, sourceRALFramework
     """
     Transforms the abstract claims of the sourceRALFramework into asserted claims of the targetRALFramework and returns a set of the transformed asserted claims.
     """
-    pass
+    claimInformationByAbstractConcept = {}
+    isClaimAbout = sourceRALFramework.DirectDataAbstraction("isClaimAbout", "select")
+    for abstractClaim in abstractClaims:
+        claimConnections = abstractClaim.connections
+        connectionToAbstractConcept = [connection for connection in claimConnections if connection[1] == isClaimAbout]
+        if not len(connectionToAbstractConcept) == 1:
+            raise ValueError("The abstract claim does not make a claim on exactly one abstract concept.")
+        claimedAbstraction = connectionToAbstractConcept[0][2]
+        claimInformation = None
+        for claimConnection in claimConnections:
+            if claimConnection[1] == isClaimAbout:
+                continue
+            isClaimInformation = False
+            newClaimInformation = [None, None, None]
+            for index, item in enumerate(claimConnection):
+                newClaimInformation[index] = item
+                if item != 0 and item.format == "abstractClaim":
+                    newClaimInformation[index] = sourceRALFramework.DirectDataAbstraction(item.data, "claim")
+                    isClaimInformation = True
+            if isClaimInformation:
+                if not claimInformation == None:
+                    raise ValueError("The abstract claim contains multiple claim informations.")
+                claimInformation = newClaimInformation
+        if claimInformation == None:
+            raise ValueError("The abstract claim does not contain any claim information.")
+        claimInformationByAbstractConcept.setdefault(claimedAbstraction, []).append(claimInformation)
+    def transformation(sourceAbstraction, sourceRALFramework, targetRALFramework):
+        data = sourceAbstraction.data
+        if not data == None:
+            # The sourceAbstraction is a direct data abstraction
+            return targetRALFramework.DirectDataAbstraction(data, sourceAbstraction.format)
+        # The sourceAbstraction is a constructed abstraction
+        connections = [*sourceAbstraction.connections]
+        for claimInformation in claimInformationByAbstractConcept.get(sourceAbstraction, []):
+            connections.append(claimInformation)
+        return connections
+    transformedAbstractions = transformRALNetwork(set(claimInformationByAbstractConcept.keys()), sourceRALFramework, targetRALFramework, transformation)
+    return set([transformedAbstractions[abstractConcept] for abstractConcept in claimInformationByAbstractConcept.keys()])
