@@ -11,6 +11,7 @@ PASSWORD = "password"
 DATABASE = "consemnet"
 outputpath = "output.ralj"
 SRF = SQLiteRALFramework("database.sqlite")
+SRF2 = SQLiteRALFramework("database2.sqlite")
 
 dda1 = SRF.DirectDataAbstraction("Physics", "text")
 dda2 = SRF.DirectDataAbstraction("Particle Physics", "text")
@@ -22,11 +23,12 @@ ca2 = SRF.ConstructedAbstraction({(dda1, 0, ca1), (0, dda2, 0)})
 print(ca1.connections)
 print(ca1.type)
 ca1.remembered = True
-dda1.forceDeletion()
 #search = [*SRF.searchRALJPattern(triples = [["1", dda2, "1"], [dda1, "2", "1"]])]
 #search = [*SRF.searchRALJPattern(constructed = {"2" : [[0, dda2, "1"], [dda1, "2", ca1]]})]
 search = [*SRF.searchRALJPattern(data = {"dataconcept1" : (["data"], ["text"])}, constructed = {"constructedconcept1" : [["dataconcept1", 0, "someconcept"], "+"]})]
 print(search)
+result  = transformRALNetwork({dda1, dda2, ca1, ca2}, SRF, SRF2, RALTransformationIdentity)
+print(result)
 """
 #with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
 #session = driver.session(database=DATABASE)

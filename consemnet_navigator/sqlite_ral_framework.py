@@ -109,6 +109,73 @@ class SQLiteRALFramework:
             raise ValueError("The abstraction with the given id does not exist.")
         return self._getAbstractionWrapperFromID(res[0])
     
+class SQLiteAbstraction:
+    def __init__(self, abstractionId, framework):
+        self._id = abstractionId
+        self.RALFramework = framework
+    @property
+    def framework(self):
+        return self.RALFramework
+    @property
+    def id(self):
+        if self._id == None:
+            raise ValueError("The abstraction has been deleted.")
+        return self._id
+    @property
+    def data(self):
+        self.RALFramework._cur.execute("SELECT data FROM abstractions WHERE id = ?", (self.id,))
+        return self.RALFramework._cur.fetchone()[0]
+    @property
+    def format(self):
+        self.RALFramework._cur.execute("SELECT format FROM abstractions WHERE id = ?", (self.id,))
+        return self.RALFramework._cur.fetchone()[0]
+    @property
+    def connections(self):
+        self.RALFramework._cur.execute("SELECT connections FROM abstractions WHERE id = ?", (self.id,))
+        triples = self.RALFramework._cur.fetchone()[0].split("|")
+        triples = [tuple([0 if element == "-" else self.RALFramework._getAbstractionWrapperFromID(int(element)) for element in triple.split(",")]) for triple in triples]
+        return frozenset(triples)
+    @property
+    def remembered(self):
+        self.RALFramework._cur.execute("SELECT remember FROM abstractions WHERE id = ?", (self.id,))
+        return self.RALFramework._cur.fetchone()[0] != 0
+    @remembered.setter
+    def remembered(self, value):
+        self.RALFramework._cur.execute("UPDATE abstractions SET remember = ? WHERE id = ?", (1 if value else 0, self.id))
+        self.RALFramework._conn.commit()
+    @property
+    def type(self):
+        self.RALFramework._cur.execute("SELECT data FROM abstractions WHERE id = ?", (self.id,))
+        return "DirectDataAbstraction" if self.RALFramework._cur.fetchone()[0] != None else "ConstructedAbstraction"
+    def __repr__(self):
+        if self._id == None:
+            return f"Abstraction(deleted)"
+        return f"Abstraction({self.id})"
+    def __del__(self):
+        self._safeDelete()
+    def _safeDelete(self):
+        if self._id == None:
+            return
+        id = self.id
+        self._id = None
+        # Check if the abstraction can be savely deleted from the sqlite database
+        idsToCheckForDeletion = set([id])
+        while len(idsToCheckForDeletion) > 0:
+            id = idsToCheckForDeletion.pop()
+            idsToCheckForDeletion |= checkForSafeAbstractionDeletion(id, self.RALFramework)
+    def forceDeletion(self):
+        if self._id == None:
+            raise ValueError("The abstraction has been deleted.")
+        forcedDeletionIds = {self._id}
+        safeDeletionIds = set()
+        while len(forcedDeletionIds) > 0:
+            id = forcedDeletionIds.pop()
+            safeDeletionIds.add(id)
+            forcedDeletionIds |= forceAbstractionDeletion(id, self.RALFramework).difference(safeDeletionIds)
+        while len(safeDeletionIds) > 0:
+            id = safeDeletionIds.pop()
+            safeDeletionIds |= checkForSafeAbstractionDeletion(id, self.RALFramework)
+    
 class DataSearchModule:
     def __init__(self, param, data, format, framework):
         self.framework = framework
@@ -252,70 +319,6 @@ def searchAllSearchModules(searchModules, knownParameters):
         for newKnownParameters in searchAllSearchModules([searchModule for searchModule in searchModules if searchModule != moduleWithSmallestNumberOfUnknownParameters], newKnownParameters):
             yield newKnownParameters
 
-
-class SQLiteAbstraction:
-    def __init__(self, abstractionId, framework):
-        self._id = abstractionId
-        self.RALFramework = framework
-    @property
-    def id(self):
-        if self._id == None:
-            raise ValueError("The abstraction has been deleted.")
-        return self._id
-    @property
-    def data(self):
-        self.RALFramework._cur.execute("SELECT data FROM abstractions WHERE id = ?", (self.id,))
-        return self.RALFramework._cur.fetchone()[0]
-    @property
-    def format(self):
-        self.RALFramework._cur.execute("SELECT format FROM abstractions WHERE id = ?", (self.id,))
-        return self.RALFramework._cur.fetchone()[0]
-    @property
-    def connections(self):
-        self.RALFramework._cur.execute("SELECT connections FROM abstractions WHERE id = ?", (self.id,))
-        triples = self.RALFramework._cur.fetchone()[0].split("|")
-        triples = [tuple([0 if element == "-" else self.RALFramework._getAbstractionWrapperFromID(int(element)) for element in triple.split(",")]) for triple in triples]
-        return frozenset(triples)
-    @property
-    def remembered(self):
-        self.RALFramework._cur.execute("SELECT remember FROM abstractions WHERE id = ?", (self.id,))
-        return self.RALFramework._cur.fetchone()[0] != 0
-    @remembered.setter
-    def remembered(self, value):
-        self.RALFramework._cur.execute("UPDATE abstractions SET remember = ? WHERE id = ?", (1 if value else 0, self.id))
-        self.RALFramework._conn.commit()
-    @property
-    def type(self):
-        self.RALFramework._cur.execute("SELECT data FROM abstractions WHERE id = ?", (self.id,))
-        return "DirectDataAbstraction" if self.RALFramework._cur.fetchone()[0] != None else "ConstructedAbstraction"
-    def __repr__(self):
-        if self._id == None:
-            return f"Abstraction(deleted)"
-        return f"Abstraction({self.id})"
-    def __del__(self):
-        self._safeDelete()
-    def _safeDelete(self):
-        if self._id == None:
-            return
-        id = self.id
-        self._id = None
-        # Check if the abstraction can be savely deleted from the sqlite database
-        idsToCheckForDeletion = set([id])
-        while len(idsToCheckForDeletion) > 0:
-            id = idsToCheckForDeletion.pop()
-            idsToCheckForDeletion |= checkForSafeAbstractionDeletion(id, self.RALFramework)
-    def forceDeletion(self):
-        if self._id == None:
-            raise ValueError("The abstraction has been deleted.")
-        forcedDeletionIds = {self._id}
-        safeDeletionIds = set()
-        while len(forcedDeletionIds) > 0:
-            id = forcedDeletionIds.pop()
-            safeDeletionIds.add(id)
-            forcedDeletionIds |= forceAbstractionDeletion(id, self.RALFramework).difference(safeDeletionIds)
-        while len(safeDeletionIds) > 0:
-            id = safeDeletionIds.pop()
-            safeDeletionIds |= checkForSafeAbstractionDeletion(id, self.RALFramework)
 
 def checkForSafeAbstractionDeletion(id, RALFramework):
     """
