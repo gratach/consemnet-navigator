@@ -27,7 +27,7 @@ ca1.remembered = True
 #search = [*SRF.searchRALJPattern(constructed = {"2" : [[0, dda2, "1"], [dda1, "2", ca1]]})]
 search = [*SRF.searchRALJPattern(data = {"dataconcept1" : (["data"], ["text"])}, constructed = {"constructedconcept1" : [["dataconcept1", 0, "someconcept"], "+"]})]
 print(search)
-result  = transformRALNetwork({dda1, dda2, ca1, ca2}, SRF, SRF2, RALTransformationIdentity)
+result  = transformRALNetwork({dda1, dda2, ca1, ca2}, SRF, SRF, RALTestTransformation)
 print(result)
 """
 #with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:

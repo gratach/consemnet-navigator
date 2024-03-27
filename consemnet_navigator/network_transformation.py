@@ -1,15 +1,15 @@
 def transformRALNetwork(sourceAbstractions, sourceRALFramework, targetRALFramework, transformationFunction):
     """
     Transforms the sourceAbstractions from the sourceRALFramework to the targetRALFramework using the transformationFunction and returns a dict that maps each transformed sourceAbstraction to its corresponding targetAbstraction.
-    The sourceRALFramework and targetRALFramework can not be the same.
     The transformationFunction must be a function that takes a sourceAbstraction, the sourceRALFramework and the targetRALFramework as arguments and returns eather:
         - a targetAbstraction
-        - a baseConnections object consisting of a list of triples like [[0, pred1, obj1], [0, pred2, obj2], ...] 
-            where the abstract concepts can be eather of the source or the target RALFramework
+        - a baseConnections object that is build in the following way:
+            It is a list of triples where each triple is a list of three items.
+            Each triple has to contain one or more 0 items, that represent the self-connections of the new abstraction.
+            If the item is not a 0 item, it is eather a sourceAbstraction or a targetAbstraction.
+            If it is a target anbstraction, it is marked by being enclosed in a list with one item.
     """
     # Check the input
-    if sourceRALFramework == targetRALFramework:
-        raise ValueError("The sourceRALFramework and targetRALFramework can not be the same.")
     for sourceAbstraction in sourceAbstractions:
         if sourceAbstraction.framework != sourceRALFramework:
             raise ValueError("The sourceAbstractions must be from the sourceRALFramework.")
@@ -32,7 +32,9 @@ def transformRALNetwork(sourceAbstractions, sourceRALFramework, targetRALFramewo
                 for itemIndex, item in enumerate(triple):
                     if item == 0:
                         continue
-                    if sourceRALFramework.isValidAbstraction(item):
+                    if type(item) == list and len(item) == 1 and targetRALFramework.isValidAbstraction(item[0]):
+                        transformedAbstraction[tripleIndex][itemIndex] = item[0]
+                    elif sourceRALFramework.isValidAbstraction(item):
                         # Check if the item is already transformed
                         if item in finishedTransformations:
                             # Replace the item with the transformed item
@@ -45,7 +47,7 @@ def transformRALNetwork(sourceAbstractions, sourceRALFramework, targetRALFramewo
                             # Add the item to the unckeckedTransformations if necessary
                             if not item in unfinishedTransformations:
                                 uncheckedTransformations.add(item)
-                    elif not targetRALFramework.isValidAbstraction(item):
+                    else:
                         raise ValueError("The baseConnections object contains an invalid abstraction.")
             # Check if the transformation is unfinished
             if numberOfSourceAbstractions > 0:
@@ -90,3 +92,14 @@ def RALTransformationIdentity(sourceAbstraction, sourceRALFramework, targetRALFr
         return targetRALFramework.DirectDataAbstraction(data, sourceAbstraction.format)
     # The sourceAbstraction is a constructed abstraction
     return sourceAbstraction.connections
+
+def RALTestTransformation(sourceAbstraction, sourceRALFramework, targetRALFramework):
+    """
+    The identity transformation function that returns the equivalent targetAbstraction of the sourceAbstraction.
+    """
+    data = sourceAbstraction.data
+    if not data == None:
+        # The sourceAbstraction is a direct data abstraction
+        return targetRALFramework.DirectDataAbstraction(data, sourceAbstraction.format)
+    # The sourceAbstraction is a constructed abstraction
+    return [*sourceAbstraction.connections, [0, 0, [targetRALFramework.DirectDataAbstraction("Test", "text")]]]
