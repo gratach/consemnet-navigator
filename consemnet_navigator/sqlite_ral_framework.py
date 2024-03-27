@@ -17,19 +17,19 @@ class SQLiteRALFramework:
                 raise ValueError("The base connections must consist of triples with at least one element being 0.")
             if triple[0] == 0:
                 subject = "-"
-            elif type(triple[0]) == SQLiteAbstraction:
+            elif self.isValidAbstraction(triple[0]):
                 subject = str(triple[0].id)
             else:
                 raise ValueError("The subject of a triple must be an abstraction.")
             if triple[1] == 0:
                 predicate = "-"
-            elif type(triple[1]) == SQLiteAbstraction:
+            elif self.isValidAbstraction(triple[1]):
                 predicate = str(triple[1].id)
             else:
                 raise ValueError("The predicate of a triple must be an abstraction.")
             if triple[2] == 0:
                 object = "-"
-            elif type(triple[2]) == SQLiteAbstraction:
+            elif self.isValidAbstraction(triple[2]):
                 object = str(triple[2].id)
             else:
                 raise ValueError("The object of a triple must be an abstraction.")

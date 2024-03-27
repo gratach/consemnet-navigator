@@ -15,11 +15,12 @@ SRF2 = SQLiteRALFramework("database2.sqlite")
 
 dda1 = SRF.DirectDataAbstraction("Physics", "text")
 dda2 = SRF.DirectDataAbstraction("Particle Physics", "text")
+exist = SRF.DirectDataAbstraction("exist", "claim")
 print(dda1.data)
 print(dda1.format)
 print(dda1.type)
-ca1 = SRF.ConstructedAbstraction({(0, 0, dda2), (0, dda2, 0)})
-ca2 = SRF.ConstructedAbstraction({(dda1, 0, ca1), (0, dda2, 0)})
+ca1 = SRF.ConstructedAbstraction({(0, 0, dda2), (0, exist, 0)})
+ca2 = SRF.ConstructedAbstraction({(dda1, 0, ca1), (0, exist, 0)})
 print(ca1.connections)
 print(ca1.type)
 ca1.remembered = True
@@ -27,7 +28,7 @@ ca1.remembered = True
 #search = [*SRF.searchRALJPattern(constructed = {"2" : [[0, dda2, "1"], [dda1, "2", ca1]]})]
 search = [*SRF.searchRALJPattern(data = {"dataconcept1" : (["data"], ["text"])}, constructed = {"constructedconcept1" : [["dataconcept1", 0, "someconcept"], "+"]})]
 print(search)
-result  = transformRALNetwork({dda1, dda2, ca1, ca2}, SRF, SRF, RALTestTransformation)
+result  = transformAssertedClaimsIntoAbstractClaims({dda1, dda2, ca1, ca2}, SRF, SRF2)
 print(result)
 """
 #with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:

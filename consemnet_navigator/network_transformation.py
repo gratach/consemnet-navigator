@@ -82,7 +82,7 @@ def transformRALNetwork(sourceAbstractions, sourceRALFramework, targetRALFramewo
                     sourceAbstractionsToResolve.add(dependingSourceAbstraction)
     return finishedTransformations
 
-def RALTransformationIdentity(sourceAbstraction, sourceRALFramework, targetRALFramework):
+def RALIdentityTransformation(sourceAbstraction, sourceRALFramework, targetRALFramework):
     """
     The identity transformation function that returns the equivalent targetAbstraction of the sourceAbstraction.
     """
@@ -93,13 +93,51 @@ def RALTransformationIdentity(sourceAbstraction, sourceRALFramework, targetRALFr
     # The sourceAbstraction is a constructed abstraction
     return sourceAbstraction.connections
 
-def RALTestTransformation(sourceAbstraction, sourceRALFramework, targetRALFramework):
+def transformAssertedClaimsIntoAbstractClaims(abstractConceptsContainingAssertedClaims, sourceRALFramework, targetRALFramework):
     """
-    The identity transformation function that returns the equivalent targetAbstraction of the sourceAbstraction.
+    Transforms the asserted claims of the abstractConceptsContainingAssertedClaims from the sourceRALFramework to the targetRALFramework and returns a set of the transformed abstract claims.
     """
-    data = sourceAbstraction.data
-    if not data == None:
-        # The sourceAbstraction is a direct data abstraction
-        return targetRALFramework.DirectDataAbstraction(data, sourceAbstraction.format)
-    # The sourceAbstraction is a constructed abstraction
-    return [*sourceAbstraction.connections, [0, 0, [targetRALFramework.DirectDataAbstraction("Test", "text")]]]
+    claimInformationByAbstractConcept = {}
+    def transformation(sourceAbstraction, sourceRALFramework, targetRALFramework):
+        data = sourceAbstraction.data
+        if not data == None:
+            # The sourceAbstraction is a direct data abstraction
+            return targetRALFramework.DirectDataAbstraction(data, sourceAbstraction.format)
+        # The sourceAbstraction is a constructed abstraction
+        oldConnections = sourceAbstraction.connections
+        newConnections = []
+        for sub, pred, obj in oldConnections:
+            tripleIsClaim = False
+            claimInformation = [sub, pred, obj]
+            if sub != 0 and sub.format == "claim":
+                claimInformation[0] = sourceRALFramework.DirectDataAbstraction(sub.data, "abstractClaim")
+                tripleIsClaim = True
+            if pred != 0 and pred.format == "claim":
+                claimInformation[1] = sourceRALFramework.DirectDataAbstraction(pred.data, "abstractClaim")
+                tripleIsClaim = True
+            if obj != 0 and obj.format == "claim":
+                claimInformation[2] = sourceRALFramework.DirectDataAbstraction(obj.data, "abstractClaim")
+                tripleIsClaim = True
+            if tripleIsClaim:
+                claimInformationByAbstractConcept.setdefault(sourceAbstraction, []).append(claimInformation)
+            else:
+                newConnections.append(claimInformation)
+        return newConnections
+    transformedAbstractions = {}
+    untransformedAbstractions = set(abstractConceptsContainingAssertedClaims)
+    while len(untransformedAbstractions) > 0:
+        transformedAbstractions |= transformRALNetwork(untransformedAbstractions, sourceRALFramework, targetRALFramework, transformation)
+        untransformedAbstractions = set([item for triples in claimInformationByAbstractConcept.values() for triple in triples for item in triple if item != 0]).difference(transformedAbstractions.keys())
+    abstractClaims = set()
+    isClaimAbout = targetRALFramework.DirectDataAbstraction("isClaimAbout", "select")
+    for abstractConcept, claimInformation in claimInformationByAbstractConcept.items():
+        for sub, pred, obj in claimInformation:
+            abstractClaims.add(targetRALFramework.ConstructedAbstraction({(0 if sub == 0 else transformedAbstractions[sub], 0 if pred == 0 else transformedAbstractions[pred], 0 if obj == 0 else transformedAbstractions[obj]),
+                                                                          (0, isClaimAbout, transformedAbstractions[abstractConcept])}))
+    return abstractClaims
+
+def transformAbstractClaimsIntoAssertedClaims(abstractClaims, sourceRALFramework, targetRALFramework):
+    """
+    Transforms the abstract claims of the sourceRALFramework into asserted claims of the targetRALFramework and returns a set of the transformed asserted claims.
+    """
+    pass
