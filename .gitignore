@@ -3,3 +3,4 @@ output/
 *.pyc
 *.ralj
 *.sqlite
+*.sqlite-journal

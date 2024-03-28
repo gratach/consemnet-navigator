@@ -1,93 +1,91 @@
 
 
-def RalID(context, idString, baseConnections = set()):
+_identifiedByKeyObject = object()
+_ralidStringKeyObject = object()
+def RalID(RALFramework, idString, baseConnections = set(), tempStorageDict = None):
     """
     Get the constructed abstraction of an identified concept
     """
-    RALFramework = context.get("RALFramework")
-    identifiedBy = loadContextConcept(context, "identifiedBy", lambda : RALFramework.DirectDataAbstraction("identifiedBy", "atomic"))
-    ralidString = loadContextConcept(context, "ralid_" +  idString, lambda: RALFramework.DirectDataAbstraction(idString, "ralid"))
+    identifiedBy = loadTempStorageConcept(_identifiedByKeyObject, tempStorageDict, RALFramework, lambda : RALFramework.DirectDataAbstraction("identifiedBy", "atomic"))
+    ralidString = loadTempStorageConcept((_ralidStringKeyObject, idString), tempStorageDict, RALFramework, lambda: RALFramework.DirectDataAbstraction(idString, "ralid"))
     if len(baseConnections) == 0:
-        return loadContextConcept(context, "identified_" + idString, lambda: RALFramework.ConstructedAbstraction({(0, identifiedBy, ralidString)}))
+        return loadTempStorageConcept((_identifiedByKeyObject, idString), tempStorageDict, RALFramework, lambda: RALFramework.ConstructedAbstraction({(0, identifiedBy, ralidString)}))
     return RALFramework.ConstructedAbstraction({(0, identifiedBy, ralidString)}|baseConnections)
 
-def RalText(context, text):
+def RalText(RALFramework, text, tempStorageDict = None):
     """
     Get the constructed abstraction of a text
     """
-    RALFramework = context.get("RALFramework")
     return RALFramework.DirectDataAbstraction(text, "text")
 
-def RalLanguage(context, languageIdString):
+_languageKeyObject = object()
+def RalLanguage(RALFramework, languageIdString, tempStorageDict = None):
     """
     Get the constructed abstraction of a language
     """
-    RALFramework = context.get("RALFramework")
-    isInstanceOf = RalID(context, "isInstanceOf")
-    languageID = RalID(context, "language")
-    return loadContextConcept(context, "language_" + languageIdString, lambda: RalID(context, languageIdString, {(0, isInstanceOf, languageID)}))
+    isInstanceOf = RalID(RALFramework, "isInstanceOf", tempStorageDict = tempStorageDict)
+    languageID = RalID(RALFramework, "language", tempStorageDict = tempStorageDict)
+    return loadTempStorageConcept((_languageKeyObject, languageIdString), tempStorageDict, RALFramework, lambda: RalID(RALFramework, languageIdString, {(0, isInstanceOf, languageID)}, tempStorageDict = tempStorageDict))
 
-def RalTerm(context, termString, language = None):
+def RalTerm(RALFramework, termString, language = None, tempStorageDict = None):
     """
     Get the constructed abstraction of a term
     """
-    RALFramework = context.get("RALFramework")
-    isTermOfLanguage = RalID(context, "isTermOfLanguage")
-    hasTextContent = RalID(context, "hasTextContent")
+    isTermOfLanguage = RalID(RALFramework, "isTermOfLanguage", tempStorageDict = tempStorageDict)
+    hasTextContent = RalID(RALFramework, "hasTextContent", tempStorageDict = tempStorageDict)
     if language == None:
-        language = RalLanguage(context, "lang.english")
-    return RALFramework.ConstructedAbstraction({(0, isTermOfLanguage, language), (0, hasTextContent, RalText(context, termString))})
+        language = RalLanguage(RALFramework, "lang.english", tempStorageDict = tempStorageDict)
+    return RALFramework.ConstructedAbstraction({(0, isTermOfLanguage, language), (0, hasTextContent, RalText(RALFramework, termString, tempStorageDict = tempStorageDict))})
 
-def RealWorldConcept(context, baseConnections = set(), name = [], connectionName = [], inverseConnectionName = [], language = None):
+def RealWorldConcept(RALFramework, baseConnections = set(), name = [], connectionName = [], inverseConnectionName = [], language = None, tempStorageDict = None):
     """
     Get the constructed abstraction of a term concept
     """
-    RALFramework = context.get("RALFramework")
     names = name if type(name) in [list, set, tuple] else [name]
-    names = {name if RALFramework.isValidAbstraction(name) else RalTerm(context, name, language) for name in names}
+    names = {name if RALFramework.isValidAbstraction(name) else RalTerm(RALFramework, name, language, tempStorageDict=tempStorageDict) for name in names}
     relationNames = connectionName if type(connectionName) in [list, set, tuple] else [connectionName]
-    relationNames = {relationName if RALFramework.isValidAbstraction(relationName) else RalTerm(context, relationName, language) for relationName in relationNames}
+    relationNames = {relationName if RALFramework.isValidAbstraction(relationName) else RalTerm(RALFramework, relationName, language, tempStorageDict=tempStorageDict) for relationName in relationNames}
     inverseRelationNames = inverseConnectionName if type(inverseConnectionName) in [list, set, tuple] else [inverseConnectionName]
-    inverseRelationNames = {inverseRelationName if RALFramework.isValidAbstraction(inverseRelationName) else RalTerm(context, inverseRelationName, language) for inverseRelationName in inverseRelationNames}
-    isInstanceOf = RalID(context, "isInstanceOf")
-    realWorldConcept = RalID(context, "realWorldConcept")
-    isCalled = RalID(context, "isCalled")
-    relationIsCalled = RalID(context, "relationIsCalled")
-    inverseRelationIsCalled = RalID(context, "inverseRelationIsCalled")
+    inverseRelationNames = {inverseRelationName if RALFramework.isValidAbstraction(inverseRelationName) else RalTerm(RALFramework, inverseRelationName, language, tempStorageDict=tempStorageDict) for inverseRelationName in inverseRelationNames}
+    isInstanceOf = RalID(RALFramework, "isInstanceOf", tempStorageDict=tempStorageDict)
+    realWorldConcept = RalID(RALFramework, "realWorldConcept", tempStorageDict=tempStorageDict)
+    isCalled = RalID(RALFramework, "isCalled", tempStorageDict=tempStorageDict)
+    relationIsCalled = RalID(RALFramework, "relationIsCalled", tempStorageDict=tempStorageDict)
+    inverseRelationIsCalled = RalID(RALFramework, "inverseRelationIsCalled", tempStorageDict=tempStorageDict)
     return RALFramework.ConstructedAbstraction({(0, isInstanceOf, realWorldConcept)}|{(0, isCalled, name) for name in names}|{(0, relationIsCalled, relationName) for relationName in relationNames}|{(0, inverseRelationIsCalled, inverseRelationName) for inverseRelationName in inverseRelationNames}|baseConnections)
 
-def findConceptName(context, concept):
+def findConceptName(RALFramework, concept, tempStorageDict = None):
     """
     Get the name of a concept
     """
-    RALFramework = context.get("RALFramework")
-    isCalled = RalID(context, "isCalled")
+    isCalled = RalID(RALFramework, "isCalled", tempStorageDict = tempStorageDict)
     res = [*RALFramework.searchRALJPattern(constructed = {concept : [[0, isCalled, "1"], "+"]})]
     if len(res) == 0:
         return None
     term = res[0]["1"]
-    hasTextContent = RalID(context, "hasTextContent")
+    hasTextContent = RalID(RALFramework, "hasTextContent", tempStorageDict = tempStorageDict)
     res = [*RALFramework.searchRALJPattern(constructed = {term : [[0, hasTextContent, "1"], "+"]})]
     if len(res) == 0:
         return None
     return res[0]["1"].data
 
-def findConceptsName(context, concepts):
+def findConceptsName(RALFramework, concepts, tempStorageDict = None):
     """
     Get the first valid name of a set of concepts
     """
     for concept in concepts:
-        name = findConceptName(context, concept)
+        name = findConceptName(RALFramework, concept, tempStorageDict = tempStorageDict)
         if name != None:
             return name
 
-def loadContextConcept(context, conceptName, conceptCreationFunction):
+def loadTempStorageConcept(conceptKey, tempstorage, ralFramework, conceptCreationFunction):
     """
     Load a concept from the context if it exists, otherwise create it
     """
-    concepts = context["concepts"] = context.get("concepts", {})
-    if conceptName in concepts:
-        return concepts[conceptName]
+    if tempstorage == None:
+        return conceptCreationFunction()
+    if conceptKey in tempstorage and ralFramework in tempstorage[conceptKey]:
+        return tempstorage[conceptKey][ralFramework]
     concept = conceptCreationFunction()
-    concepts[conceptName] = concept
+    tempstorage.setdefault(conceptKey, {})[ralFramework] = concept
     return concept

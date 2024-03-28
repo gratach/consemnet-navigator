@@ -13,7 +13,7 @@ outputpath = "output.ralj"
 SRF = SQLiteRALFramework("database.sqlite")
 SRF2 = SQLiteRALFramework("database2.sqlite")
 SRF3 = SQLiteRALFramework("database3.sqlite")
-
+"""
 dda1 = SRF.DirectDataAbstraction("Physics", "text")
 dda2 = SRF.DirectDataAbstraction("Particle Physics", "text")
 exist = SRF.DirectDataAbstraction("exist", "claim")
@@ -38,15 +38,22 @@ print(transformresult2)
 #session = driver.session(database=DATABASE)
 #RF = Neo4jRALFramework(session)
 context = {"RALFramework": SRF}
-hasSubtopic = RealWorldConcept(context, connectionName="has specified subtopic", inverseConnectionName="is specified subtopic of")
-physics = RealWorldConcept(context, name="Physics")
-particlePhysicsSubtopicOfPhysics = RealWorldConcept(context, name="Particle Physics", baseConnections={(physics, hasSubtopic, 0)})
-science = RealWorldConcept(context, name="Science")
-physicsSubtopicOfScience = RealWorldConcept(context, name="Physics", baseConnections={(science, hasSubtopic, 0)})
+tempStorageDict = context.setdefault("tempStorageDict", {})
+hasSubtopic = RealWorldConcept(SRF, connectionName="has specified subtopic", inverseConnectionName="is specified subtopic of", tempStorageDict=tempStorageDict)
+physics = RealWorldConcept(SRF, name="Physics", tempStorageDict=tempStorageDict)
+particlePhysicsSubtopicOfPhysics = RealWorldConcept(SRF, name="Particle Physics", baseConnections={(physics, hasSubtopic, 0)}, tempStorageDict=tempStorageDict)
+science = RealWorldConcept(SRF, name="Science", tempStorageDict=tempStorageDict)
+physicsSubtopicOfScience = RealWorldConcept(SRF, name="Physics", baseConnections={(science, hasSubtopic, 0)}, tempStorageDict=tempStorageDict)
+
+input("Press Enter to continue...")
+testRealworldConcepts = []
+for i in range(0, 100):
+    testRealworldConcepts.append(RealWorldConcept(SRF, name="Test Realworld Concept " + str(i), tempStorageDict=tempStorageDict))
+
+input("Press Enter to continue...")
 
 context["currentAbstraction"] = physics
 context["displayEnvironment"] = runDisplayRealWorldConceptEnvironment
 
-runNavigator(context)
+#runNavigator(context)
     #RF.close()
-"""
