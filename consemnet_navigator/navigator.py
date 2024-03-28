@@ -193,17 +193,17 @@ def runDisplayRealWorldConceptEnvironment(context):
     # Get the abstraction group
     abstractionGroup = getAbstractionGroup(currentAbstraction, context.get("getAbstractionGroupContext", context))
     # Get the name of the abstraction group
-    abstractionGroupName = findConceptsName(context.get("getAbstractionNameContext", context), abstractionGroup)
+    abstractionGroupName = findConceptsName(RF, abstractionGroup)
     context["currentAbstractionTerm"] = abstractionGroupName
     print(abstractionGroupName + " " + RF.getStringRepresentationFromAbstraction(currentAbstraction))
     # Get the base connections of the current abstraction
     connectionByConnectionName = {} # {connectionName : [connection, inverseConnection, {connectedAbstractionName : connectedAbstraction}]}
-    isInstanceOf = RalID(context, "isInstanceOf")
-    realWorldConcept = RalID(context, "realWorldConcept")
-    isCalled = RalID(context, "isCalled")
-    relationIsCalled = RalID(context, "relationIsCalled")
-    inverseRelationIsCalled = RalID(context, "inverseRelationIsCalled")
-    hasTextContent = RalID(context, "hasTextContent")
+    isInstanceOf = RalID(RF, "isInstanceOf")
+    realWorldConcept = RalID(RF, "realWorldConcept")
+    isCalled = RalID(RF, "isCalled")
+    relationIsCalled = RalID(RF, "relationIsCalled")
+    inverseRelationIsCalled = RalID(RF, "inverseRelationIsCalled")
+    hasTextContent = RalID(RF, "hasTextContent")
     for abstraction in abstractionGroup:
         connections = RF.searchRALJPattern(triples = [(abstraction, "connection", "connectedAbstraction"), 
                                                       ("connection", isInstanceOf, realWorldConcept), ("connectedAbstraction", isInstanceOf, realWorldConcept),
@@ -242,6 +242,6 @@ def runDisplayRealWorldConceptEnvironment(context):
 def runGetAbstractionGroup(abstraction, context):
     RF = context.get("RALFramework")
     # Get all abstract concepts, that are called by the same term
-    isCalled = RalID(context, "isCalled")
+    isCalled = RalID(RF, "isCalled")
     search = RF.searchRALJPattern(triples = [(abstraction, isCalled, "term"), ("connectedAbstraction", isCalled, "term")])
     return set([x["connectedAbstraction"] for x in search]) | {abstraction}

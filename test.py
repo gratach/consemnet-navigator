@@ -39,21 +39,21 @@ print(transformresult2)
 #RF = Neo4jRALFramework(session)
 context = {"RALFramework": SRF}
 tempStorageDict = context.setdefault("tempStorageDict", {})
-hasSubtopic = RealWorldConcept(SRF, connectionName="has specified subtopic", inverseConnectionName="is specified subtopic of", tempStorageDict=tempStorageDict)
-physics = RealWorldConcept(SRF, name="Physics", tempStorageDict=tempStorageDict)
-particlePhysicsSubtopicOfPhysics = RealWorldConcept(SRF, name="Particle Physics", baseConnections={(physics, hasSubtopic, 0)}, tempStorageDict=tempStorageDict)
-science = RealWorldConcept(SRF, name="Science", tempStorageDict=tempStorageDict)
-physicsSubtopicOfScience = RealWorldConcept(SRF, name="Physics", baseConnections={(science, hasSubtopic, 0)}, tempStorageDict=tempStorageDict)
+hasSubtopic = RealWorldConcept(SRF, connectionName="has specified subtopic", inverseConnectionName="is specified subtopic of")
+physics = RealWorldConcept(SRF, name="Physics")
+particlePhysicsSubtopicOfPhysics = RealWorldConcept(SRF, name="Particle Physics", baseConnections={(physics, hasSubtopic, 0)})
+science = RealWorldConcept(SRF, name="Science")
+physicsSubtopicOfScience = RealWorldConcept(SRF, name="Physics", baseConnections={(science, hasSubtopic, 0)})
 
 input("Press Enter to continue...")
 testRealworldConcepts = []
 for i in range(0, 100):
-    testRealworldConcepts.append(RealWorldConcept(SRF, name="Test Realworld Concept " + str(i), tempStorageDict=tempStorageDict))
+    testRealworldConcepts.append(RealWorldConcept(SRF, name="Test Realworld Concept " + str(i)))
 
 input("Press Enter to continue...")
 
 context["currentAbstraction"] = physics
 context["displayEnvironment"] = runDisplayRealWorldConceptEnvironment
 
-#runNavigator(context)
+runNavigator(context)
     #RF.close()
