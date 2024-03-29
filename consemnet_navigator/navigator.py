@@ -243,5 +243,13 @@ def runGetAbstractionGroup(abstraction, context):
     RF = context.get("RALFramework")
     # Get all abstract concepts, that are called by the same term
     isCalled = RalID(RF, "isCalled")
-    search = RF.searchRALJPattern(triples = [(abstraction, isCalled, "term"), ("connectedAbstraction", isCalled, "term")])
-    return set([x["connectedAbstraction"] for x in search]) | {abstraction}
+    hasTextContent = RalID(RF, "hasTextContent")
+    # Get the names of the connected abstractions
+    search = RF.searchRALJPattern(triples = [(abstraction, isCalled, "term"), ("term", hasTextContent, "termName")], data = {"termName" : (["data"], "text")})
+    abstractionNames = [x["data"] for x in search]
+    context["currentAbstractionContext"] = context["RALLibrary"].loadData(abstractionNames, RF)
+    result = {abstraction}
+    for abstractionName in abstractionNames:
+        search = RF.searchRALJPattern(data = {"termName" : (abstractionName, "text")}, triples = [("term", hasTextContent, "termName"), ("abstraction", isCalled, "term")])
+        result.update({x["abstraction"] for x in search})
+    return result

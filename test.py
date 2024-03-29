@@ -34,11 +34,10 @@ transformresult1  = transformAssertedClaimsIntoAbstractClaims({dda1, dda2, ca1, 
 print(transformresult1)
 transformresult2  = transformAbstractClaimsIntoAssertedClaims(transformresult1, SRF2, SRF3)
 print(transformresult2)
-"""
+
 #with neo4j.GraphDatabase.driver(URI, auth=(USER, PASSWORD)) as driver:
 #session = driver.session(database=DATABASE)
 #RF = Neo4jRALFramework(session)
-context = {"RALFramework": SRF, "RALLibrary": RL}
 tempStorageDict = context.setdefault("tempStorageDict", {})
 hasSubtopic = RealWorldConcept(SRF, connectionName="has specified subtopic", inverseConnectionName="is specified subtopic of")
 physics = RealWorldConcept(SRF, name="Physics")
@@ -46,15 +45,11 @@ particlePhysicsSubtopicOfPhysics = RealWorldConcept(SRF, name="Particle Physics"
 science = RealWorldConcept(SRF, name="Science")
 physicsSubtopicOfScience = RealWorldConcept(SRF, name="Physics", baseConnections={(science, hasSubtopic, 0)})
 RL.saveData([physics, particlePhysicsSubtopicOfPhysics, science, physicsSubtopicOfScience], SRF)
+"""
 
-input("Press Enter to continue...")
-testRealworldConcepts = []
-for i in range(0, 1000):
-    testRealworldConcepts.append(RealWorldConcept(SRF, name="Test Realworld Concept " + str(i)))
+context = {"RALFramework": SRF, "RALLibrary": RL}
 
-input("Press Enter to continue...")
-
-context["currentAbstraction"] = physics
+context["currentAbstraction"] = RealWorldConcept(context["RALFramework"], name="Physics")
 context["displayEnvironment"] = runDisplayRealWorldConceptEnvironment
 
 runNavigator(context)

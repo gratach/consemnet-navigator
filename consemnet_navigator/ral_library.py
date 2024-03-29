@@ -53,10 +53,10 @@ class RALLibrary:
         relevantFiles = set()
         for keyword in keywords:
             self._cur.execute("SELECT name FROM dataFiles WHERE id IN (SELECT dataFileId FROM keywordOccurrences WHERE keywordId IN (SELECT id FROM keywords WHERE keyword = ?))", (keyword,))
-            relevantFiles.update(self._cur.fetchall())
+            relevantFiles.update([x[0] for x in self._cur.fetchall()])
         result = set()
         for hexname in relevantFiles:
-            result.update(self._loadDataFromFile(hexname))
+            result.update(self._loadDataFromFile(hexname, RALFramework).values())
         return result
     def _addFileToIndex(self, hexname, keywords):
         self._cur.execute("INSERT INTO dataFiles (name) VALUES (?)", (hexname,))
@@ -76,9 +76,9 @@ class RALLibrary:
                 break
         saveRALJFile(abstractConcepts, str(dataFilePath), RALFramework)
         return hexname
-    def _loadDataFromFile(self, hexname):
+    def _loadDataFromFile(self, hexname, RALFramework):
         dataFilePath = self._dataPath / (hexname + ".ralj")
-        return loadRALJFile(str(dataFilePath))
+        return loadRALJFile(str(dataFilePath), RALFramework)
 
 def findTextKeywords(RALFramework):
     """
