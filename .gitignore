@@ -4,3 +4,4 @@ output/
 *.ralj
 *.sqlite
 *.sqlite-journal
+ral_library

@@ -9,6 +9,7 @@ class SQLiteRALFramework:
         self._cur.execute("CREATE TABLE IF NOT EXISTS abstractions (id INTEGER PRIMARY KEY, data TEXT, format TEXT, connections TEXT, tripleIds TEXT, remember INTEGER)")
         self._cur.execute("CREATE TABLE IF NOT EXISTS triples (id INTEGER PRIMARY KEY, subject INTEGER, predicate INTEGER, object INTEGER, owner INTEGER)")
         self._wrappersByAbstractionID = WeakValueDictionary()
+        self._onClose = set()
     def ConstructedAbstraction(self, baseConnections):
         # Iterate through the base connections and create the triple representations
         tripleRepresentations = []
@@ -69,10 +70,17 @@ class SQLiteRALFramework:
         wrapper = SQLiteAbstraction(id, self)
         self._wrappersByAbstractionID[id] = wrapper
         return wrapper
+    def __del__(self):
+        self.close()
     def close(self):
+        for closefunction in self._onClose:
+            closefunction(self)
         for wrapper in self._wrappersByAbstractionID.values():
             wrapper._safeDelete()
         self._conn.close()
+    @property
+    def onClose(self):
+        return self._onClose
     def isValidAbstraction(self, abstraction):
         return type(abstraction) == SQLiteAbstraction and abstraction.RALFramework == self and abstraction._id != None
     def searchRALJPattern(self, data = {}, constructed = {}, triples = []):
@@ -108,6 +116,10 @@ class SQLiteRALFramework:
         if res == None:
             raise ValueError("The abstraction with the given id does not exist.")
         return self._getAbstractionWrapperFromID(res[0])
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
     
 class SQLiteAbstraction:
     def __init__(self, abstractionId, framework):
@@ -129,6 +141,15 @@ class SQLiteAbstraction:
     def format(self):
         self.RALFramework._cur.execute("SELECT format FROM abstractions WHERE id = ?", (self.id,))
         return self.RALFramework._cur.fetchone()[0]
+    @property
+    def content(self):
+        self.RALFramework._cur.execute("SELECT data, format, connections FROM abstractions WHERE id = ?", (self.id,))
+        data, format, connections = self.RALFramework._cur.fetchone()
+        if data != None:
+            return (data, format)
+        triples = connections.split("|")
+        triples = [tuple([0 if element == "-" else self.RALFramework._getAbstractionWrapperFromID(int(element)) for element in triple.split(",")]) for triple in triples]
+        return frozenset(triples)
     @property
     def connections(self):
         self.RALFramework._cur.execute("SELECT connections FROM abstractions WHERE id = ?", (self.id,))

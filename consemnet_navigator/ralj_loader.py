@@ -94,9 +94,9 @@ def saveRALJData(abstractions, RALFramework):
     inverseDirectAbstractionBlock = {}
     while len(uncheckedAbstractions) > 0:
         abstraction = uncheckedAbstractions.pop()
-        abstractionType = RALFramework.getAbstractionType(abstraction)
+        abstractionType = abstraction.type
         if abstractionType == "DirectDataAbstraction":
-            data, format = RALFramework.getAbstractionContent(abstraction)
+            data, format = abstraction.content
             if format not in dataConceptBlock:
                 dataConceptBlock[format] = {}
             if data not in dataConceptBlock[format]:
@@ -106,7 +106,7 @@ def saveRALJData(abstractions, RALFramework):
                 jsonNodeIDByAbstractionID[abstraction] = jsonNodeName
         elif abstractionType == "ConstructedAbstraction":
             # Check if all connected abstractions are saved
-            semanticConnections = RALFramework.getAbstractionContent(abstraction)
+            semanticConnections = abstraction.connections
             allConnectedAbstractionsSaved = True
             for connection in semanticConnections:
                 for connectedAbstraction in connection:

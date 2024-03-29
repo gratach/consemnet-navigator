@@ -87,4 +87,13 @@ def loadLongTermStorageConcept(conceptKey, ralFramework, conceptCreationFunction
         return longTermStorageDict[conceptKey][ralFramework]
     concept = conceptCreationFunction()
     longTermStorageDict.setdefault(conceptKey, {})[ralFramework] = concept
+    ralFramework.onClose.add(removeRALFrameworkFromLongTermStorage)
     return concept
+
+def removeRALFrameworkFromLongTermStorage(ralFramework):
+    """
+    Remove a RAL framework from long term storage
+    """
+    for key in longTermStorageDict:
+        if ralFramework in longTermStorageDict[key]:
+            del longTermStorageDict[key][ralFramework]
